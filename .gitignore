@@ -1,0 +1,25 @@
+# General
+.DS_Store
+.vscode/
+.idea/
+
+# Backend (Python)
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+
+# Frontend (Node/React)
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+# Mobile (Flutter)
+mobile/.dart_tool/
+mobile/build/
+mobile/android/.gradle/
+mobile/ios/.symlinks/
+mobile/ios/Pods/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/*.iml
