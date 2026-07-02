@@ -31,15 +31,93 @@ class PersonService:
         data: PersonCreate,
         current_user: User,
     ) -> Person:
-        """Crea una persona desde la web (sync_source=WEB)."""
+        """
+        Crea o actualiza una persona (UPSERT por número de documento).
+        - Si ya existe un registro con el mismo document_number, actualiza los
+          campos no nulos y fusiona los nuevos contactos manteniendo los anteriores.
+        - Si es nuevo, crea el registro completo.
+        """
         now = datetime.now(timezone.utc)
 
-        # Usar UUID proporcionado o generar uno nuevo
+        # ── 1. Buscar duplicado por número de documento ────────────
+        existing_by_doc = None
+        if data.document_number and data.document_number.strip():
+            existing_by_doc = (
+                db.query(Person)
+                .filter(
+                    Person.document_number == data.document_number.strip(),
+                    Person.is_deleted == False,
+                )
+                .first()
+            )
+
+        if existing_by_doc:
+            # ── MODO ACTUALIZACIÓN ────────────────────────────────
+            person = existing_by_doc
+
+            # Actualizar campos solo si el nuevo valor no está vacío
+            fields_to_update = [
+                "first_name", "last_name", "document_type",
+                "birth_date", "gender", "address", "city",
+                "department", "country", "profession", "notes",
+            ]
+            for field in fields_to_update:
+                new_val = getattr(data, field, None)
+                if new_val is not None and new_val != "":
+                    setattr(person, field, new_val)
+
+            person.updated_at = now
+            person.synced_at = now
+            db.flush()
+
+            # ── Fusionar contactos nuevos ─────────────────────────
+            # Si viene un contacto nuevo con un valor diferente a los existentes,
+            # el nuevo se pone como primario (posición 1) y los anteriores bajan.
+            for contact_data in (data.contacts or []):
+                val = (contact_data.contact_value or "").strip()
+                if not val:
+                    continue
+
+                # Verificar si ya existe este valor exacto
+                already_exists = any(
+                    c.contact_value == val and not c.is_deleted
+                    for c in person.contacts
+                )
+                if already_exists:
+                    continue
+
+                # Bajar prioridad de los contactos del mismo tipo
+                if contact_data.is_primary:
+                    for old_c in person.contacts:
+                        if (
+                            not old_c.is_deleted
+                            and old_c.contact_type == contact_data.contact_type
+                            and old_c.is_primary
+                        ):
+                            old_c.is_primary = False
+
+                new_contact = Contact(
+                    id=uuid4(),
+                    person_id=person.id,
+                    contact_type=contact_data.contact_type,
+                    contact_value=val,
+                    is_primary=contact_data.is_primary,
+                    label=contact_data.label,
+                    captured_at=now,
+                    synced_at=now,
+                    sync_source=data.sync_source,
+                )
+                db.add(new_contact)
+
+            db.flush()
+            return person
+
+        # ── 2. MODO CREACIÓN (persona nueva) ──────────────────────
         person_id = data.id or uuid4()
 
         # Verificar duplicado por UUID (puede venir de APK)
-        existing = db.query(Person).filter(Person.id == person_id).first()
-        if existing:
+        existing_by_id = db.query(Person).filter(Person.id == person_id).first()
+        if existing_by_id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"Persona con ID {person_id} ya existe",
@@ -58,6 +136,7 @@ class PersonService:
             city=data.city,
             department=data.department,
             country=data.country,
+            profession=data.profession,
             notes=data.notes,
             captured_at=data.captured_at or now,
             synced_at=now,
@@ -69,11 +148,14 @@ class PersonService:
 
         # Crear contactos asociados
         for contact_data in (data.contacts or []):
+            val = (contact_data.contact_value or "").strip()
+            if not val:
+                continue
             contact = Contact(
                 id=uuid4(),
                 person_id=person.id,
                 contact_type=contact_data.contact_type,
-                contact_value=contact_data.contact_value,
+                contact_value=val,
                 is_primary=contact_data.is_primary,
                 label=contact_data.label,
                 captured_at=now,

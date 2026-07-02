@@ -167,7 +167,28 @@ def _process_person(
         )
 
     # ── Buscar registro existente ──────────────────────────
+    # 1. Buscar por UUID (caso normal: ya se sincronizó antes)
     existing_person = db.query(Person).filter(Person.id == uuid_id).first()
+
+    # 2. Fallback: buscar por número de documento para evitar duplicados
+    #    (ocurre cuando la APK crea la persona offline con un UUID diferente
+    #     al que ya está guardado en la web con el mismo documento)
+    if existing_person is None:
+        doc_number = data.get("document_number")
+        if doc_number and str(doc_number).strip():
+            existing_person = (
+                db.query(Person)
+                .filter(
+                    Person.document_number == str(doc_number).strip(),
+                    Person.is_deleted == False,
+                )
+                .first()
+            )
+            if existing_person:
+                logger.info(
+                    f"Person {uuid_id} no encontrada por UUID, pero sí por "
+                    f"document_number='{doc_number}' → se fusionará en lugar de insertar"
+                )
 
     if record.operation == SyncOperation.DELETE:
         if existing_person:
@@ -245,6 +266,7 @@ def _process_person(
             "city": existing_person.city,
             "department": existing_person.department,
             "country": existing_person.country,
+            "profession": existing_person.profession,
             "notes": existing_person.notes,
             "gender": existing_person.gender,
         }

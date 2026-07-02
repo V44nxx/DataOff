@@ -4,7 +4,7 @@ DataOff — Router de Personas y Contactos
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import AsesorUser, CurrentUser, get_db
@@ -48,20 +48,34 @@ def list_persons(
 @router.post(
     "",
     response_model=PersonResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Crear persona",
+    summary="Crear o actualizar persona (upsert por número de documento)",
 )
 def create_person(
     data: PersonCreate,
     current_user: AsesorUser,
     db: Session = Depends(get_db),
+    response: Response = None,
 ):
     """
-    Crea una persona nueva.
-    - Puede incluir un UUID pre-generado (desde APK).
-    - Puede incluir contactos en el mismo request.
+    Crea una persona nueva. Si ya existe un registro con el mismo número
+    de documento, actualiza sus datos y fusiona los nuevos contactos
+    (sin eliminar los anteriores).
     """
+    from app.models.person import Person as PersonModel
+    # Detectar si la persona ya existe antes de llamar al servicio
+    is_update = False
+    if data.document_number and data.document_number.strip():
+        existing = db.query(PersonModel).filter(
+            PersonModel.document_number == data.document_number.strip(),
+            PersonModel.is_deleted == False,
+        ).first()
+        is_update = existing is not None
+
     person = person_service.create_person(db=db, data=data, current_user=current_user)
+    
+    if response:
+        response.status_code = status.HTTP_200_OK if is_update else status.HTTP_201_CREATED
+    
     return person_service.get_person(db=db, person_id=person.id)
 
 
