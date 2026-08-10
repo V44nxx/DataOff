@@ -1,0 +1,53 @@
+# ======================================
+#  .dockerignore — DataOff (raíz)
+# ======================================
+
+# --- Git ---
+.git
+.gitignore
+.github
+
+# --- Secretos ---
+**/.env
+**/.env.local
+**/.env.*.local
+
+# --- Python ---
+backend/venv/
+backend/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pdb
+**/.pytest_cache/
+**/.mypy_cache/
+
+# --- Node ---
+frontend/node_modules/
+frontend/.cache/
+# dist/ NO se ignora aquí porque el stage 2 lo copia desde el builder
+
+# --- Mobile (no va en la imagen del backend) ---
+mobile/
+
+# --- Tests ---
+**/tests/
+**/*.test.py
+**/*.spec.ts
+**/*.test.ts
+
+# --- Editores ---
+.vscode/
+.idea/
+**/*.swp
+**/*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Scripts locales ---
+start.ps1
+
+# --- README ---
+README.md
