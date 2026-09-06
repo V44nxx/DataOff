@@ -69,15 +69,15 @@ export default function DashboardPage() {
   ] : []
 
   return (
-    <div className="p-6 flex flex-col gap-6 animate-fade-in">
+    <div className="p-4 sm:p-6 flex flex-col gap-5 sm:gap-6 animate-fade-in w-full max-w-full overflow-hidden">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+          <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
             Dashboard
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
             Vista general del sistema DataOff
           </p>
         </div>
@@ -87,13 +87,13 @@ export default function DashboardPage() {
           href="/DataOff.apk"
           download="DataOff.apk"
           id="btn-download-apk-header"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] w-fit"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto text-sm"
           style={{
             background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
             boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.35)',
           }}
         >
-          <Smartphone className="w-5 h-5 text-indigo-100" />
+          <Smartphone className="w-4 h-4 text-indigo-100" />
           <span>Descargar APK Móvil</span>
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium ml-1">
             v1.0.0
@@ -104,45 +104,45 @@ export default function DashboardPage() {
 
       {/* Banner de descarga de la APK Móvil */}
       <div
-        className="card p-5 relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 border border-indigo-500/20"
+        className="card p-4 sm:p-5 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-5 border border-indigo-500/20"
         style={{
           background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
         }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-start sm:items-center gap-3.5 sm:gap-4">
           <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5 sm:mt-0"
             style={{
               background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
               boxShadow: '0 8px 16px -4px rgba(99, 102, 241, 0.4)',
             }}
           >
-            <Smartphone className="w-6 h-6 text-white" />
+            <Smartphone className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h3 className="font-semibold text-base" style={{ color: 'var(--color-text-primary)' }}>
+              <h3 className="font-semibold text-sm sm:text-base" style={{ color: 'var(--color-text-primary)' }}>
                 Aplicación Móvil DataOff (Android)
               </h3>
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                 Offline-First
               </span>
               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                Release v1.0.0
+                v1.0.0
               </span>
             </div>
-            <p className="text-sm max-w-xl" style={{ color: 'var(--color-text-secondary)' }}>
+            <p className="text-xs sm:text-sm max-w-xl leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
               Captura personas y contactos en campo sin conexión a internet. Los datos se sincronizan automáticamente con este servidor al recuperar la señal.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0 w-full sm:w-auto">
+        <div className="flex items-center gap-3 flex-shrink-0 w-full md:w-auto pt-1 sm:pt-0">
           <a
             href="/DataOff.apk"
             download="DataOff.apk"
             id="btn-download-apk-banner"
-            className="flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md w-full md:w-auto text-sm"
             style={{
               background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
               boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
@@ -155,7 +155,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {overviewCards.map((card) => {
           const Icon = card.icon
           return (

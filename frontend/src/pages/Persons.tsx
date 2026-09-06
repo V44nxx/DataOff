@@ -54,33 +54,33 @@ export default function PersonsPage() {
   }
 
   return (
-    <div className="p-6 space-y-5 animate-fade-in">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 animate-fade-in w-full max-w-full overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+          <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
             Personas
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
             {data?.total.toLocaleString() ?? '—'} registros totales · Ordenados por fecha de captura
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={fetchPersons} className="btn btn-secondary btn-sm" disabled={loading}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button onClick={fetchPersons} className="btn btn-secondary btn-sm flex-1 sm:flex-initial" disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
+            <span>Actualizar</span>
           </button>
-          <button onClick={() => navigate('/persons/new')} className="btn btn-primary btn-sm">
+          <button onClick={() => navigate('/persons/new')} className="btn btn-primary btn-sm flex-1 sm:flex-initial">
             <Plus className="w-4 h-4" />
-            Nueva Persona
+            <span>Nueva Persona</span>
           </button>
         </div>
       </div>
 
       {/* Buscador */}
-      <div className="card p-4">
-        <div className="flex gap-3 items-center">
+      <div className="card p-3 sm:p-4">
+        <div className="flex gap-2 sm:gap-3 items-center">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
               style={{ color: 'var(--color-text-muted)' }} />
@@ -88,15 +88,15 @@ export default function PersonsPage() {
               id="search-persons"
               type="text"
               placeholder="Buscar por nombre, documento..."
-              className="input"
-              style={{ paddingLeft: '2.5rem' }}
+              className="input text-sm"
+              style={{ paddingLeft: '2.25rem' }}
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
             />
           </div>
-          <button className="btn btn-secondary btn-sm">
+          <button className="btn btn-secondary btn-sm flex-shrink-0">
             <Filter className="w-4 h-4" />
-            Filtros
+            <span className="hidden sm:inline">Filtros</span>
           </button>
         </div>
       </div>
@@ -200,14 +200,14 @@ export default function PersonsPage() {
 
       {/* Paginación */}
       {data && data.pages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left pt-2">
+          <p className="text-xs sm:text-sm" style={{ color: 'var(--color-text-muted)' }}>
             Página {data.page} de {data.pages} · {data.total} resultados
           </p>
-          <div className="flex gap-2">
-            <button className="btn btn-secondary btn-sm" disabled={page === 1}
+          <div className="flex gap-2 w-full sm:w-auto justify-center">
+            <button className="btn btn-secondary btn-sm flex-1 sm:flex-initial" disabled={page === 1}
               onClick={() => setPage(p => p - 1)}>Anterior</button>
-            <button className="btn btn-secondary btn-sm" disabled={page === data.pages}
+            <button className="btn btn-secondary btn-sm flex-1 sm:flex-initial" disabled={page === data.pages}
               onClick={() => setPage(p => p + 1)}>Siguiente</button>
           </div>
         </div>

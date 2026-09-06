@@ -25,7 +25,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden"
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden py-8 px-4"
       style={{ background: 'var(--color-bg-base)' }}>
 
       {/* Fondo animado con glow */}
@@ -44,22 +44,22 @@ export default function LoginPage() {
           backgroundSize: '40px 40px'
         }} />
 
-      <div className="w-full max-w-md mx-4 animate-fade-in">
+      <div className="w-full max-w-md animate-fade-in">
 
         {/* Logo + Título */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl mb-3 sm:mb-4"
             style={{ background: 'var(--gradient-brand)', boxShadow: 'var(--shadow-glow)' }}>
-            <Wifi className="w-8 h-8 text-white" />
+            <Wifi className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gradient mb-1">DataOff</h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gradient mb-1">DataOff</h1>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
             Sistema Offline-First Empresarial
           </p>
         </div>
 
         {/* Card de login */}
-        <div className="card p-8">
+        <div className="card p-5 sm:p-8">
           <h2 className="text-xl font-semibold mb-1" style={{ color: 'var(--color-text-primary)' }}>
             Iniciar Sesión
           </h2>

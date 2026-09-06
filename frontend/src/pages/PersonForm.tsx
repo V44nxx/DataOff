@@ -112,34 +112,34 @@ export default function PersonFormPage() {
   }
 
   return (
-    <div className="p-6 space-y-5 animate-fade-in max-w-4xl mx-auto">
-      <div className="flex items-center gap-4">
-        <button type="button" onClick={() => navigate('/persons')} className="btn btn-ghost btn-icon">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 animate-fade-in max-w-4xl mx-auto w-full">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <button type="button" onClick={() => navigate('/persons')} className="btn btn-ghost btn-icon p-2">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+        <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
           {isEditing ? 'Editar Persona' : 'Nueva Persona'}
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5 sm:gap-6">
         {/* Basic Info */}
-        <div className="card p-6 flex flex-col gap-5">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Información Personal</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="card p-4 sm:p-6 flex flex-col gap-4 sm:gap-5">
+          <h2 className="text-base sm:text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Información Personal</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Nombres *</label>
-              <input required type="text" name="first_name" className="input" value={formData.first_name} onChange={handleChange} placeholder="Ej. Juan" />
+              <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Nombres *</label>
+              <input required type="text" name="first_name" className="input text-sm" value={formData.first_name} onChange={handleChange} placeholder="Ej. Juan" />
             </div>
             
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Apellidos *</label>
-              <input required type="text" name="last_name" className="input" value={formData.last_name} onChange={handleChange} placeholder="Ej. Pérez" />
+              <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Apellidos *</label>
+              <input required type="text" name="last_name" className="input text-sm" value={formData.last_name} onChange={handleChange} placeholder="Ej. Pérez" />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Tipo Documento</label>
-              <select name="document_type" className="input" value={formData.document_type} onChange={handleChange}>
+              <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Tipo Documento</label>
+              <select name="document_type" className="input text-sm" value={formData.document_type} onChange={handleChange}>
                 <option value="CC">Cédula de Ciudadanía</option>
                 <option value="CE">Cédula de Extranjería</option>
                 <option value="NIT">NIT</option>
@@ -150,53 +150,54 @@ export default function PersonFormPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Número Documento</label>
-              <input type="text" name="document_number" className="input" value={formData.document_number} onChange={handleChange} />
+              <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Número Documento</label>
+              <input type="text" name="document_number" className="input text-sm" value={formData.document_number} onChange={handleChange} />
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Profesión</label>
-              <input type="text" name="profession" className="input" value={formData.profession} onChange={handleChange} placeholder="Ej. Ingeniero de Software" />
+            <div className="flex flex-col gap-1.5 md:col-span-2">
+              <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Profesión</label>
+              <input type="text" name="profession" className="input text-sm" value={formData.profession} onChange={handleChange} placeholder="Ej. Ingeniero de Software" />
             </div>
           </div>
         </div>
 
         {/* Location Info */}
-        <div className="card p-6 flex flex-col gap-5">
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Ubicación</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="card p-4 sm:p-6 flex flex-col gap-4 sm:gap-5">
+          <h2 className="text-base sm:text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Ubicación</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
             <div className="flex flex-col gap-1.5 md:col-span-2">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Dirección</label>
-              <input type="text" name="address" className="input" value={formData.address} onChange={handleChange} placeholder="Ej. Calle 123 #45-67" />
+              <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Dirección</label>
+              <input type="text" name="address" className="input text-sm" value={formData.address} onChange={handleChange} placeholder="Ej. Calle 123 #45-67" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Ciudad</label>
-              <input type="text" name="city" className="input" value={formData.city} onChange={handleChange} />
+              <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Ciudad</label>
+              <input type="text" name="city" className="input text-sm" value={formData.city} onChange={handleChange} />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>País</label>
-              <input type="text" name="country" className="input" value={formData.country} onChange={handleChange} />
+              <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>País</label>
+              <input type="text" name="country" className="input text-sm" value={formData.country} onChange={handleChange} />
             </div>
           </div>
         </div>
 
         {/* Contacts Info */}
-        <div className="card p-6 flex flex-col gap-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Contactos (Máximo 3)</h2>
+        <div className="card p-4 sm:p-6 flex flex-col gap-4 sm:gap-5">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base sm:text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>Contactos (Máximo 3)</h2>
             <button type="button" onClick={addContact} className="btn btn-secondary btn-sm" disabled={(formData.contacts?.length || 0) >= 3}>
               <Plus className="w-4 h-4" />
-              Agregar Contacto
+              <span className="hidden sm:inline">Agregar Contacto</span>
+              <span className="sm:hidden">Agregar</span>
             </button>
           </div>
           
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {formData.contacts?.map((contact, index) => (
-              <div key={index} className="flex gap-3 items-end">
-                <div className="flex flex-col gap-1.5 w-1/4">
-                  <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Tipo</label>
+              <div key={index} className="p-3 sm:p-0 rounded-xl bg-slate-800/40 sm:bg-transparent border border-slate-700/50 sm:border-0 flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+                <div className="flex flex-col gap-1.5 w-full sm:w-1/4">
+                  <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Tipo</label>
                   <select 
-                    className="input" 
+                    className="input text-sm" 
                     value={contact.contact_type} 
                     onChange={(e) => handleContactChange(index, 'contact_type', e.target.value)}
                   >
@@ -208,28 +209,28 @@ export default function PersonFormPage() {
                     <option value="other">Otro</option>
                   </select>
                 </div>
-                <div className="flex flex-col gap-1.5 flex-1">
-                  <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Valor</label>
+                <div className="flex flex-col gap-1.5 w-full sm:flex-1">
+                  <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Valor</label>
                   <input 
                     type="text" 
-                    className="input" 
+                    className="input text-sm" 
                     value={contact.contact_value} 
                     placeholder="Número o usuario..."
                     onChange={(e) => handleContactChange(index, 'contact_value', e.target.value)} 
                   />
                 </div>
-                <div className="flex flex-col gap-1.5 w-1/4">
-                  <label className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Etiqueta</label>
+                <div className="flex flex-col gap-1.5 w-full sm:w-1/4">
+                  <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Etiqueta</label>
                   <input 
                     type="text" 
-                    className="input" 
+                    className="input text-sm" 
                     value={contact.label || ''} 
                     placeholder="Ej. Personal"
                     onChange={(e) => handleContactChange(index, 'label', e.target.value)} 
                   />
                 </div>
-                <button type="button" onClick={() => removeContact(index)} className="btn btn-ghost btn-icon mb-1">
-                  <Trash2 className="w-5 h-5" style={{ color: 'var(--color-danger)' }} />
+                <button type="button" onClick={() => removeContact(index)} className="btn btn-ghost btn-icon self-end sm:self-auto sm:mb-1 p-2 text-red-400 hover:text-red-300" title="Eliminar contacto">
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
             ))}
@@ -239,11 +240,11 @@ export default function PersonFormPage() {
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-2">
-          <button type="button" onClick={() => navigate('/persons')} className="btn btn-ghost" disabled={loading}>
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-2">
+          <button type="button" onClick={() => navigate('/persons')} className="btn btn-ghost w-full sm:w-auto" disabled={loading}>
             Cancelar
           </button>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
+          <button type="submit" className="btn btn-primary w-full sm:w-auto" disabled={loading}>
             <Save className="w-4 h-4" />
             {loading ? 'Guardando...' : 'Guardar Registro'}
           </button>

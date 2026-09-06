@@ -27,19 +27,19 @@ export default function SyncPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 animate-fade-in w-full max-w-full overflow-hidden">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+        <h1 className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
           Sincronizaciones
         </h1>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
           Historial y estado del motor de sincronización
         </p>
       </div>
 
       {/* Stats de sync */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
             { label: 'Total Syncs', value: stats.total_syncs, color: '#6366f1', icon: RefreshCw },
             { label: 'Exitosas', value: stats.successful_syncs, color: '#10b981', icon: CheckCircle },
@@ -48,9 +48,9 @@ export default function SyncPage() {
           ].map(item => {
             const Icon = item.icon
             return (
-              <div key={item.label} className="stat-card">
-                <Icon className="w-5 h-5 mb-3" style={{ color: item.color }} />
-                <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+              <div key={item.label} className="stat-card p-4 sm:p-5">
+                <Icon className="w-5 h-5 mb-2 sm:mb-3" style={{ color: item.color }} />
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
                   {item.value.toLocaleString()}
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{item.label}</p>
