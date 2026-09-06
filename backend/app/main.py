@@ -4,8 +4,12 @@ Configura la aplicación, middlewares, CORS y arranque.
 """
 
 import logging
+import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Registrar MIME type de APK para que Android lo reconozca como instalador nativo y no como ZIP
+mimetypes.add_type("application/vnd.android.package-archive", ".apk")
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -206,6 +210,49 @@ async def root():
     }
 
 
+# ── Descarga de APK para Android ───────────────────────────────
+
+@app.get(
+    "/DataOff.apk",
+    include_in_schema=False,
+)
+@app.get(
+    "/download/apk",
+    include_in_schema=False,
+)
+@app.get(
+    "/api/v1/download/apk",
+    tags=["Descargas"],
+    summary="Descargar APK de Android",
+)
+async def download_apk():
+    """
+    Descarga directa del paquete instalador de Android (APK).
+    Configura el MIME type oficial `application/vnd.android.package-archive`
+    y cabeceras `Content-Disposition: attachment` para evitar que los navegadores
+    móviles (Google Chrome, Samsung Internet) guarden el archivo como .zip.
+    """
+    apk_path = STATIC_DIR / "DataOff.apk"
+    if not apk_path.is_file():
+        return JSONResponse(
+            status_code=status.HTTP_404_NOT_FOUND,
+            content={"detail": "Archivo APK no encontrado en el servidor."},
+        )
+
+    return FileResponse(
+        path=apk_path,
+        filename="DataOff.apk",
+        media_type="application/vnd.android.package-archive",
+        headers={
+            "Content-Type": "application/vnd.android.package-archive",
+            "Content-Disposition": 'attachment; filename="DataOff.apk"',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
+
+
 # ── React Router / Fallback ────────────────────────────────────
 
 @app.get(
@@ -220,6 +267,17 @@ async def serve_frontend(full_path: str):
     file_path = STATIC_DIR / full_path
 
     if file_path.is_file():
+        if file_path.suffix.lower() == ".apk":
+            return FileResponse(
+                path=file_path,
+                filename=file_path.name,
+                media_type="application/vnd.android.package-archive",
+                headers={
+                    "Content-Type": "application/vnd.android.package-archive",
+                    "Content-Disposition": f'attachment; filename="{file_path.name}"',
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                },
+            )
         return FileResponse(file_path)
 
     index_path = STATIC_DIR / "index.html"
