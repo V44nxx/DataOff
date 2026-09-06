@@ -45,3 +45,13 @@ def _create_superuser(db: Session) -> None:
         f"✅ Superusuario creado: {settings.FIRST_SUPERUSER_EMAIL} "
         f"(rol: {UserRole.SUPER_ADMIN.value})"
     )
+
+
+if __name__ == "__main__":
+    from app.db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        init_db(db)
+    finally:
+        db.close()

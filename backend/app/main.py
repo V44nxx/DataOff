@@ -191,15 +191,22 @@ def health_check():
 )
 async def root():
     """
-    Sirve la aplicación React.
+    Sirve la aplicación React si existe el build estático.
+    De lo contrario, devuelve el estado de la API.
     """
+    index_path = STATIC_DIR / "index.html"
+    if index_path.is_file():
+        return FileResponse(index_path)
 
-    return FileResponse(
-        STATIC_DIR / "index.html"
-    )
+    return {
+        "app": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "status": "online",
+        "docs": "/docs" if settings.DEBUG else None,
+    }
 
 
-# ── React Router ───────────────────────────────────────────────
+# ── React Router / Fallback ────────────────────────────────────
 
 @app.get(
     "/{full_path:path}",
@@ -207,32 +214,24 @@ async def root():
 )
 async def serve_frontend(full_path: str):
     """
-    Permite que React Router maneje las rutas del frontend.
-
-    Ejemplos:
-
-    /login
-    /dashboard
-    /personas
-    /sincronizacion
-
-    Si el archivo existe físicamente dentro de /static,
-    se sirve directamente.
-
-    Si no existe, se devuelve index.html para que React
-    pueda manejar la ruta.
+    Permite que React Router maneje las rutas del frontend si los archivos existen.
+    Si no existe frontend compilado, responde 404 limpio.
     """
-
     file_path = STATIC_DIR / full_path
 
-    # Evitar intentar acceder a directorios
-    # o archivos inexistentes.
     if file_path.is_file():
         return FileResponse(file_path)
 
-    # React Router se encarga de la ruta.
-    return FileResponse(
-        STATIC_DIR / "index.html"
+    index_path = STATIC_DIR / "index.html"
+    if index_path.is_file():
+        return FileResponse(index_path)
+
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={
+            "detail": "Ruta no encontrada",
+            "path": f"/{full_path}",
+        },
     )
 
 

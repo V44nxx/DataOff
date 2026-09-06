@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dataoff_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dataoff_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dataoff_password}
+      POSTGRES_DB: ${POSTGRES_DB:-dataoff_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dataoff_user} -d ${POSTGRES_DB:-dataoff_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: dataoff_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=False
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-dataoff_user}:${POSTGRES_PASSWORD:-dataoff_password}@postgres:5432/${POSTGRES_DB:-dataoff_db}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-*}
+      - FIRST_SUPERUSER_EMAIL=${FIRST_SUPERUSER_EMAIL:-admin@dataoff.com}
+      - FIRST_SUPERUSER_PASSWORD=${FIRST_SUPERUSER_PASSWORD:-Admin@DataOff2024Secure}
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:

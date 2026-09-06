@@ -5,8 +5,9 @@
 
 # Backend (Python)
 backend/venv/
-backend/__pycache__/
-backend/*.pyc
+backend/.venv/
+**/__pycache__/
+**/*.py[cod]
 backend/.env
 
 # Frontend (Node/React)

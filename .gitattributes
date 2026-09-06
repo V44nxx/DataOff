@@ -1,0 +1,4 @@
+# Asegurar que los scripts de shell siempre conserven finales de línea LF (Linux)
+*.sh text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf

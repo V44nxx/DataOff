@@ -1,0 +1,30 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Secretos y variables locales
+.env
+.env.local
+.env.*
+
+# Python bytecode y caché
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+# Tests y scripts de prueba local
+tests/
+test_*.py
+
+# Git
+.git
+.gitignore
+
+# IDEs y SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

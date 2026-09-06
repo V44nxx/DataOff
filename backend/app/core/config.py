@@ -3,7 +3,7 @@ DataOff Backend — Configuración Central
 Usa Pydantic Settings para validar y tipear todas las variables de entorno.
 """
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, field_validator
 
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     # ── Base de Datos ──────────────────────────────────────
     DATABASE_URL: str
-    ASYNC_DATABASE_URL: str
+    ASYNC_DATABASE_URL: Optional[str] = None
 
     # ── JWT ────────────────────────────────────────────────
     SECRET_KEY: str
