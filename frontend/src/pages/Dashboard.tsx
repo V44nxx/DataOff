@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Users, RefreshCw, Activity, Smartphone, Globe,
-  TrendingUp, Clock, CheckCircle, AlertCircle, ArrowUpRight,
+  TrendingUp, Clock, CheckCircle, AlertCircle, ArrowUpRight, Download,
 } from 'lucide-react'
 import { dashboardService, syncService } from '@/services'
 import type { DashboardStats, SyncLog } from '@/types'
@@ -72,13 +72,86 @@ export default function DashboardPage() {
     <div className="p-6 flex flex-col gap-6 animate-fade-in">
 
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Dashboard
-        </h1>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-          Vista general del sistema DataOff
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+            Dashboard
+          </h1>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+            Vista general del sistema DataOff
+          </p>
+        </div>
+
+        {/* Botón Descargar APK en Header */}
+        <a
+          href="/DataOff.apk"
+          download="DataOff.apk"
+          id="btn-download-apk-header"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white shadow-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] w-fit"
+          style={{
+            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+            boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.35)',
+          }}
+        >
+          <Smartphone className="w-5 h-5 text-indigo-100" />
+          <span>Descargar APK Móvil</span>
+          <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium ml-1">
+            v1.0.0
+          </span>
+          <Download className="w-4 h-4 ml-0.5 opacity-80" />
+        </a>
+      </div>
+
+      {/* Banner de descarga de la APK Móvil */}
+      <div
+        className="card p-5 relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 border border-indigo-500/20"
+        style={{
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%)',
+        }}
+      >
+        <div className="flex items-center gap-4">
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              boxShadow: '0 8px 16px -4px rgba(99, 102, 241, 0.4)',
+            }}
+          >
+            <Smartphone className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h3 className="font-semibold text-base" style={{ color: 'var(--color-text-primary)' }}>
+                Aplicación Móvil DataOff (Android)
+              </h3>
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Offline-First
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                Release v1.0.0
+              </span>
+            </div>
+            <p className="text-sm max-w-xl" style={{ color: 'var(--color-text-secondary)' }}>
+              Captura personas y contactos en campo sin conexión a internet. Los datos se sincronizan automáticamente con este servidor al recuperar la señal.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 flex-shrink-0 w-full sm:w-auto">
+          <a
+            href="/DataOff.apk"
+            download="DataOff.apk"
+            id="btn-download-apk-banner"
+            className="flex items-center justify-center gap-2.5 px-5 py-2.5 rounded-xl font-semibold text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md w-full sm:w-auto"
+            style={{
+              background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+              boxShadow: '0 4px 14px rgba(99, 102, 241, 0.35)',
+            }}
+          >
+            <Download className="w-4 h-4" />
+            <span>Descargar APK (50 MB)</span>
+          </a>
+        </div>
       </div>
 
       {/* Stat Cards */}

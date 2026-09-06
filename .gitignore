@@ -24,3 +24,7 @@ mobile/ios/Pods/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
 mobile/*.iml
+
+# Backups y dumps
+*.sql
+*.dump
