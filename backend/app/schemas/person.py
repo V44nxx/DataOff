@@ -98,6 +98,7 @@ class PersonUpdate(BaseModel):
     country: Optional[str] = None
     profession: Optional[str] = None
     notes: Optional[str] = None
+    contacts: Optional[List[ContactBase]] = None
 
 
 class PersonResponse(PersonBase):

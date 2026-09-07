@@ -456,7 +456,6 @@ def _process_contact(
         while len(active_contacts) >= 3:
             oldest = active_contacts.pop(0)
             oldest.is_deleted = True
-            oldest.deleted_at = synced_at
             oldest.updated_at = synced_at
             logger.info(
                 f"Escalera max 3 contactos: se desactiva contacto antiguo {oldest.contact_value} "

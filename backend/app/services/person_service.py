@@ -3,14 +3,14 @@ DataOff — Servicio de Personas
 Lógica de negocio para CRUD de personas y contactos.
 """
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.enums import SyncSource, SyncStatus
+from app.core.enums import ContactType, SyncSource, SyncStatus
 from app.models.person import Contact, Person
 from app.models.user import User
 from app.schemas.person import (
@@ -21,6 +21,137 @@ from app.schemas.person import (
     PersonUpdate,
     PaginatedPersons,
 )
+
+
+def _normalize_contact_type(raw: Any) -> ContactType:
+    """Normaliza cualquier texto de tipo de contacto al enum oficial de PostgreSQL."""
+    if isinstance(raw, ContactType):
+        return raw
+    if not raw:
+        return ContactType.PHONE
+    val = str(raw).lower().strip()
+    if "tel" in val or "cel" in val or "mov" in val or "phone" in val:
+        return ContactType.PHONE
+    if "mail" in val or "correo" in val:
+        return ContactType.EMAIL
+    if "what" in val:
+        return ContactType.WHATSAPP
+    if "face" in val:
+        return ContactType.FACEBOOK
+    if "insta" in val:
+        return ContactType.INSTAGRAM
+    try:
+        return ContactType(val)
+    except ValueError:
+        return ContactType.OTHER
+
+
+def _apply_contacts_escalera(
+    db: Session,
+    person: Person,
+    incoming_contacts: list[Any],
+    now: datetime,
+    sync_source: SyncSource = SyncSource.WEB,
+) -> list[Contact]:
+    """
+    Aplica la regla de escalera (máximo 3 contactos activos por persona):
+    1. Filtra números ya existentes para evitar duplicados.
+    2. Los nuevos contactos toman la posición superior (Puesto 1).
+    3. Los contactos previos se desplazan hacia abajo (Puesto 2 y 3).
+    4. Si hay más de 3 contactos activos, los más antiguos se marcan como
+       is_deleted = True (desalojo FIFO).
+    5. Re-etiqueta los hasta 3 contactos activos conservados:
+       - Puesto 1 -> 'Contacto 1' (is_primary = True)
+       - Puesto 2 -> 'Contacto 2' (is_primary = False)
+       - Puesto 3 -> 'Contacto 3' (is_primary = False)
+    """
+    active_contacts = (
+        db.query(Contact)
+        .filter(
+            Contact.person_id == person.id,
+            Contact.is_deleted == False,
+        )
+        .all()
+    )
+
+    existing_values = {
+        c.contact_value.strip().lower()
+        for c in active_contacts
+        if c.contact_value
+    }
+
+    newly_added: list[Contact] = []
+    for cd in (incoming_contacts or []):
+        val = getattr(cd, "contact_value", None)
+        if val is None and isinstance(cd, dict):
+            val = cd.get("contact_value")
+        val = str(val or "").strip()
+        if not val or val.lower() in existing_values:
+            continue
+        existing_values.add(val.lower())
+
+        ctype = getattr(cd, "contact_type", None)
+        if ctype is None and isinstance(cd, dict):
+            ctype = cd.get("contact_type")
+        ctype = _normalize_contact_type(ctype)
+
+        cid = getattr(cd, "id", None)
+        if cid is None and isinstance(cd, dict):
+            cid = cd.get("id")
+        cid = cid or uuid4()
+
+        cap_at = getattr(cd, "captured_at", None)
+        if cap_at is None and isinstance(cd, dict):
+            cap_at = cd.get("captured_at")
+        cap_at = cap_at or now
+        if isinstance(cap_at, str):
+            try:
+                cap_at = datetime.fromisoformat(cap_at.replace("Z", "+00:00"))
+            except ValueError:
+                cap_at = now
+
+        new_c = Contact(
+            id=cid,
+            person_id=person.id,
+            contact_type=ctype,
+            contact_value=val,
+            is_primary=False,
+            label=None,
+            captured_at=cap_at,
+            synced_at=now,
+            sync_source=sync_source,
+            is_deleted=False,
+        )
+        db.add(new_c)
+        newly_added.append(new_c)
+
+    all_active = [c for c in (newly_added + active_contacts) if not c.is_deleted]
+
+    def _get_ts(c: Contact) -> float:
+        dt = c.captured_at or c.created_at or now
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc).timestamp()
+        return dt.timestamp()
+
+    # Ordenar por fecha descendente: el más nuevo primero (Puesto 1)
+    all_active.sort(key=_get_ts, reverse=True)
+
+    to_keep = all_active[:3]
+    to_evict = all_active[3:]
+
+    # Desalojar los que superen el límite de 3
+    for old_c in to_evict:
+        old_c.is_deleted = True
+        old_c.updated_at = now
+
+    # Re-etiquetar los hasta 3 contactos activos
+    for idx, c in enumerate(to_keep):
+        c.label = f"Contacto {idx + 1}"
+        c.is_primary = (idx == 0)
+        c.updated_at = now
+
+    db.flush()
+    return to_keep
 
 
 class PersonService:
@@ -70,44 +201,15 @@ class PersonService:
             person.synced_at = now
             db.flush()
 
-            # ── Fusionar contactos nuevos ─────────────────────────
-            # Si viene un contacto nuevo con un valor diferente a los existentes,
-            # el nuevo se pone como primario (posición 1) y los anteriores bajan.
-            for contact_data in (data.contacts or []):
-                val = (contact_data.contact_value or "").strip()
-                if not val:
-                    continue
-
-                # Verificar si ya existe este valor exacto
-                already_exists = any(
-                    c.contact_value == val and not c.is_deleted
-                    for c in person.contacts
-                )
-                if already_exists:
-                    continue
-
-                # Bajar prioridad de los contactos del mismo tipo
-                if contact_data.is_primary:
-                    for old_c in person.contacts:
-                        if (
-                            not old_c.is_deleted
-                            and old_c.contact_type == contact_data.contact_type
-                            and old_c.is_primary
-                        ):
-                            old_c.is_primary = False
-
-                new_contact = Contact(
-                    id=uuid4(),
-                    person_id=person.id,
-                    contact_type=contact_data.contact_type,
-                    contact_value=val,
-                    is_primary=contact_data.is_primary,
-                    label=contact_data.label,
-                    captured_at=now,
-                    synced_at=now,
+            # ── Aplicar regla de escalera a los contactos ─────────
+            if data.contacts:
+                _apply_contacts_escalera(
+                    db=db,
+                    person=person,
+                    incoming_contacts=data.contacts,
+                    now=now,
                     sync_source=data.sync_source,
                 )
-                db.add(new_contact)
 
             db.flush()
             return person
@@ -144,31 +246,23 @@ class PersonService:
             sync_status=SyncStatus.SYNCED,
         )
         db.add(person)
-        db.flush()  # Para obtener el ID antes de crear contactos
+        db.flush()  # Para obtener el ID antes de asociar contactos
 
-        # Crear contactos asociados
-        for contact_data in (data.contacts or []):
-            val = (contact_data.contact_value or "").strip()
-            if not val:
-                continue
-            contact = Contact(
-                id=uuid4(),
-                person_id=person.id,
-                contact_type=contact_data.contact_type,
-                contact_value=val,
-                is_primary=contact_data.is_primary,
-                label=contact_data.label,
-                captured_at=now,
-                synced_at=now,
-                sync_source=SyncSource.WEB,
+        # Crear contactos asociados aplicando la regla de escalera (máx 3)
+        if data.contacts:
+            _apply_contacts_escalera(
+                db=db,
+                person=person,
+                incoming_contacts=data.contacts,
+                now=now,
+                sync_source=data.sync_source,
             )
-            db.add(contact)
 
         db.flush()
         return person
 
     def get_person(self, db: Session, person_id: UUID) -> Person:
-        """Obtiene una persona con sus contactos. 404 si no existe."""
+        """Obtiene una persona con sus contactos activos (máximo 3). 404 si no existe."""
         person = (
             db.query(Person)
             .options(joinedload(Person.contacts))
@@ -180,6 +274,9 @@ class PersonService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Persona {person_id} no encontrada",
             )
+        # Filtrar únicamente contactos activos y ordenarlos por etiqueta
+        person.contacts = [c for c in person.contacts if not c.is_deleted]
+        person.contacts.sort(key=lambda c: c.label or "Contacto 99")
         return person
 
     def list_persons(
@@ -275,9 +372,20 @@ class PersonService:
 
         update_data = data.model_dump(exclude_unset=True, exclude_none=False)
         for field, value in update_data.items():
+            if field == "contacts":
+                continue
             # Aplicar regla de merge: no sobrescribir con vacío
             if value is not None and value != "":
                 setattr(person, field, value)
+
+        if data.contacts is not None:
+            _apply_contacts_escalera(
+                db=db,
+                person=person,
+                incoming_contacts=data.contacts,
+                now=datetime.now(timezone.utc),
+                sync_source=SyncSource.WEB,
+            )
 
         person.updated_at = datetime.now(timezone.utc)
         db.flush()
@@ -312,25 +420,21 @@ class PersonService:
         data: ContactCreate,
         current_user: User,
     ) -> Contact:
-        """Agrega un contacto a una persona existente."""
+        """Agrega un contacto a una persona existente aplicando regla de escalera."""
         # Verificar que la persona existe
         person = self.get_person(db, data.person_id)
 
         now = datetime.now(timezone.utc)
-        contact = Contact(
-            id=data.id or uuid4(),
-            person_id=data.person_id,
-            contact_type=data.contact_type,
-            contact_value=data.contact_value,
-            is_primary=data.is_primary,
-            label=data.label,
-            captured_at=data.captured_at or now,
-            synced_at=now,
+        kept = _apply_contacts_escalera(
+            db=db,
+            person=person,
+            incoming_contacts=[data],
+            now=now,
             sync_source=data.sync_source,
         )
-        db.add(contact)
+        person.updated_at = now
         db.flush()
-        return contact
+        return kept[0] if kept else None
 
 
 person_service = PersonService()
