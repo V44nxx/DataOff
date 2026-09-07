@@ -13,6 +13,9 @@ abstract class PersonRepository {
   /// Obtiene una persona por ID
   Future<Person?> getPersonById(String id);
 
+  /// Obtiene una persona por número de documento
+  Future<Person?> getPersonByDocument(String documentNumber);
+
   /// Guarda una persona localmente (INSERT o UPDATE)
   Future<void> savePerson(Person person);
 

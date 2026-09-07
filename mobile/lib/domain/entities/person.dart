@@ -139,6 +139,36 @@ class Contact extends Equatable {
     required this.updatedAt,
   });
 
+  Contact copyWith({
+    String? id,
+    String? personId,
+    String? contactType,
+    String? contactValue,
+    bool? isPrimary,
+    String? label,
+    DateTime? capturedAt,
+    DateTime? syncedAt,
+    String? syncSource,
+    bool? isDeleted,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Contact(
+      id: id ?? this.id,
+      personId: personId ?? this.personId,
+      contactType: contactType ?? this.contactType,
+      contactValue: contactValue ?? this.contactValue,
+      isPrimary: isPrimary ?? this.isPrimary,
+      label: label ?? this.label,
+      capturedAt: capturedAt ?? this.capturedAt,
+      syncedAt: syncedAt ?? this.syncedAt,
+      syncSource: syncSource ?? this.syncSource,
+      isDeleted: isDeleted ?? this.isDeleted,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   @override
   List<Object?> get props => [id, personId, contactType, contactValue];
 }

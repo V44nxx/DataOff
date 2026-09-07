@@ -68,6 +68,7 @@ class CreatePersonUseCase {
       capturedAt: now,   // ← Fecha real de captura. INMUTABLE.
       syncSource: 'mobile',
       syncStatus: 'pending',  // ← Pendiente hasta que se sincronice
+      deviceId: deviceId,
       contacts: contacts,
       createdAt: now,
       updatedAt: now,

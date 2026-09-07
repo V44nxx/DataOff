@@ -141,8 +141,9 @@ def _process_person(
     user_id: Optional[UUID],
     device_id: str,
     synced_at: datetime,
+    person_id_map: Optional[dict[UUID, UUID]] = None,
 ) -> SyncRecordResult:
-    """Procesa un registro de tipo 'person'."""
+    """Procesa un registro de tipo 'person' (insert o merge)."""
     data = record.data
     entity_id = data.get("id")
 
@@ -189,6 +190,9 @@ def _process_person(
                     f"Person {uuid_id} no encontrada por UUID, pero sí por "
                     f"document_number='{doc_number}' → se fusionará en lugar de insertar"
                 )
+
+    if person_id_map is not None:
+        person_id_map[uuid_id] = existing_person.id if existing_person else uuid_id
 
     if record.operation == SyncOperation.DELETE:
         if existing_person:
@@ -311,6 +315,7 @@ def _process_contact(
     record: SyncRecord,
     device_id: str,
     synced_at: datetime,
+    person_id_map: Optional[dict[UUID, UUID]] = None,
 ) -> SyncRecordResult:
     """Procesa un registro de tipo 'contact'."""
     data = record.data
@@ -337,9 +342,19 @@ def _process_contact(
             message=f"UUID inválido: {e}",
         )
 
+    # Remapear person_uuid si la persona padre fue fusionada por documento
+    if person_id_map and person_uuid in person_id_map:
+        original_parent = person_uuid
+        person_uuid = person_id_map[person_uuid]
+        if original_parent != person_uuid:
+            logger.info(
+                f"Contact {uuid_id}: person_id remapeado de {original_parent} a "
+                f"{person_uuid} (fusión por documento)"
+            )
+
     # Verificar que la persona padre existe
-    person_exists = db.query(Person.id).filter(Person.id == person_uuid).first()
-    if not person_exists:
+    parent_person = db.query(Person).filter(Person.id == person_uuid).first()
+    if not parent_person:
         return SyncRecordResult(
             entity_type="contact",
             entity_id=str(uuid_id),
@@ -348,7 +363,22 @@ def _process_contact(
             message=f"Persona padre {person_uuid} no encontrada",
         )
 
+    contact_val = str(data.get("contact_value", "")).strip()
+
+    # 1. Buscar contacto existente por UUID
     existing_contact = db.query(Contact).filter(Contact.id == uuid_id).first()
+
+    # 2. Si no existe por UUID, verificar si la persona ya tiene un contacto activo con el mismo valor
+    if existing_contact is None and contact_val:
+        existing_contact = (
+            db.query(Contact)
+            .filter(
+                Contact.person_id == person_uuid,
+                Contact.contact_value == contact_val,
+                Contact.is_deleted == False,
+            )
+            .first()
+        )
 
     if record.operation == SyncOperation.DELETE:
         if existing_contact:
@@ -375,8 +405,8 @@ def _process_contact(
         new_contact = Contact(
             id=uuid_id,
             person_id=person_uuid,
-            contact_type=data.get("contact_type", "phone"),
-            contact_value=data.get("contact_value", ""),
+            contact_type=data.get("contact_type", "Teléfono"),
+            contact_value=contact_val,
             is_primary=data.get("is_primary", False),
             label=data.get("label"),
             captured_at=captured_at,
@@ -384,13 +414,15 @@ def _process_contact(
             sync_source=SyncSource.MOBILE,
         )
         db.add(new_contact)
+        parent_person.updated_at = synced_at
+        parent_person.synced_at = synced_at
 
         return SyncRecordResult(
             entity_type="contact",
             entity_id=str(uuid_id),
             operation=record.operation,
             status="inserted",
-            message=f"Contacto insertado (captured_at={captured_at})",
+            message=f"Contacto insertado/fusionado ({contact_val})",
         )
     else:
         return SyncRecordResult(
@@ -398,7 +430,7 @@ def _process_contact(
             entity_id=str(uuid_id),
             operation=record.operation,
             status="skipped",
-            message="Contacto ya existe",
+            message=f"Contacto {contact_val} ya existe para esta persona",
         )
 
 
@@ -441,10 +473,12 @@ class MergeEngine:
             f"({len(person_records)} personas, {len(contact_records)} contactos)"
         )
 
+        person_id_map: dict[UUID, UUID] = {}
+
         # ── Pasada 1: Personas ─────────────────────────────
         for record in person_records:
             try:
-                record_result = _process_person(db, record, user_id, device_id, synced_at)
+                record_result = _process_person(db, record, user_id, device_id, synced_at, person_id_map)
             except Exception as e:
                 logger.exception(f"Error procesando person {record.data.get('id')}: {e}")
                 record_result = SyncRecordResult(
@@ -464,7 +498,7 @@ class MergeEngine:
         # ── Pasada 2: Contactos ────────────────────────────
         for record in contact_records:
             try:
-                record_result = _process_contact(db, record, device_id, synced_at)
+                record_result = _process_contact(db, record, device_id, synced_at, person_id_map)
             except Exception as e:
                 logger.exception(f"Error procesando contact {record.data.get('id')}: {e}")
                 record_result = SyncRecordResult(

@@ -24,6 +24,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
 
   String _documentType = 'CC';
   bool _isLoading = false;
+  Person? _existingPerson;
 
   // Contact fields (Up to 3)
   final List<String> _contactTypes = ['Teléfono', 'Teléfono', 'Teléfono'];
@@ -38,13 +39,57 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
     TextEditingController(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _documentNumberController.addListener(_onDocumentNumberChanged);
+  }
+
+  void _onDocumentNumberChanged() async {
+    final doc = _documentNumberController.text.trim();
+    if (doc.length >= 5) {
+      final personRepo = getIt<PersonRepository>();
+      final existing = await personRepo.getPersonByDocument(doc);
+      if (mounted) {
+        setState(() {
+          _existingPerson = existing;
+          if (existing != null) {
+            if (_firstNameController.text.isEmpty) {
+              _firstNameController.text = existing.firstName;
+            }
+            if (_lastNameController.text.isEmpty) {
+              _lastNameController.text = existing.lastName;
+            }
+            if (_professionController.text.isEmpty && (existing.profession?.isNotEmpty ?? false)) {
+              _professionController.text = existing.profession!;
+            }
+            if (_addressController.text.isEmpty && (existing.address?.isNotEmpty ?? false)) {
+              _addressController.text = existing.address!;
+            }
+            if (_cityController.text.isEmpty && (existing.city?.isNotEmpty ?? false)) {
+              _cityController.text = existing.city!;
+            }
+          }
+        });
+      }
+    } else if (_existingPerson != null) {
+      setState(() => _existingPerson = null);
+    }
+  }
+
   Future<void> _savePerson() async {
     if (!_formKey.currentState!.validate()) return;
     
     setState(() => _isLoading = true);
     
     final personRepo = getIt<PersonRepository>();
-    final personId = const Uuid().v4();
+    final docNumber = _documentNumberController.text.trim();
+    Person? existing;
+    if (docNumber.isNotEmpty) {
+      existing = await personRepo.getPersonByDocument(docNumber);
+    }
+
+    final personId = existing?.id ?? const Uuid().v4();
     final now = DateTime.now().toUtc();
 
     // Create contacts list
@@ -71,13 +116,13 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
       firstName: _firstNameController.text.trim(),
       lastName: _lastNameController.text.trim(),
       documentType: _documentType,
-      documentNumber: _documentNumberController.text.trim(),
+      documentNumber: docNumber,
       profession: _professionController.text.trim(),
       address: _addressController.text.trim(),
       city: _cityController.text.trim(),
       country: 'Colombia',
-      capturedAt: now,
-      createdAt: now,
+      capturedAt: existing?.capturedAt ?? now,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       syncStatus: 'pending',
       syncSource: 'mobile',
@@ -87,10 +132,25 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
     try {
       await personRepo.savePerson(person);
       if (mounted) {
+        String msg = 'Persona guardada offline con éxito';
+        if (existing != null) {
+          final existingPhones = existing.contacts.map((c) => c.contactValue.toLowerCase().trim()).toSet();
+          final newCount = contacts.where((c) => !existingPhones.contains(c.contactValue.toLowerCase().trim())).length;
+          if (newCount > 0) {
+            msg = 'Cédula actualizada: se agregó $newCount nuevo(s) contacto(s) adicional(es)';
+          } else {
+            msg = 'Cédula actualizada con éxito (los números ya estaban registrados)';
+          }
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Persona guardada offline con éxito')),
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: existing != null ? Colors.teal.shade700 : Colors.green.shade700,
+            duration: const Duration(seconds: 3),
+          ),
         );
-        context.pop();
+        context.pop(true);
       }
     } catch (e) {
       if (mounted) {
@@ -107,14 +167,19 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
 
   @override
   void dispose() {
+    _documentNumberController.removeListener(_onDocumentNumberChanged);
     _firstNameController.dispose();
     _lastNameController.dispose();
     _documentNumberController.dispose();
     _professionController.dispose();
     _addressController.dispose();
     _cityController.dispose();
-    for (var c in _contactValueControllers) c.dispose();
-    for (var c in _contactLabelControllers) c.dispose();
+    for (var c in _contactValueControllers) {
+      c.dispose();
+    }
+    for (var c in _contactLabelControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -227,6 +292,48 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
                       ),
                     ],
                   ),
+                  if (_existingPerson != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Persona registrada: ${_existingPerson!.fullName}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber.shade900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Teléfonos actuales: ${_existingPerson!.contacts.isEmpty ? "Sin teléfonos previos" : _existingPerson!.contacts.map((c) => "${c.label ?? "Contacto"}: ${c.contactValue}").join(", ")}',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Los números nuevos que agregues abajo se guardarán como métodos de contacto adicionales (2° o 3°).',
+                            style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.black87),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _professionController,

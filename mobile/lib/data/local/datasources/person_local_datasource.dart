@@ -1,4 +1,5 @@
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../domain/entities/person.dart';
 import '../../../domain/repositories/person_repository.dart';
@@ -56,25 +57,109 @@ class PersonLocalDataSource implements PersonRepository {
   }
 
   @override
+  Future<Person?> getPersonByDocument(String documentNumber) async {
+    final doc = documentNumber.trim();
+    if (doc.isEmpty) return null;
+    final db = await _db;
+    final maps = await db.query(
+      'persons',
+      where: 'document_number = ? AND is_deleted = 0',
+      whereArgs: [doc],
+      limit: 1,
+    );
+    if (maps.isEmpty) return null;
+    return _personWithContacts(db, maps.first);
+  }
+
+  @override
   Future<void> savePerson(Person person) async {
     final db = await _db;
-    await db.insert(
-      'persons',
-      PersonModel.toMap(person),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    final now = DateTime.now().toUtc().toIso8601String();
 
-    // Guardar contactos
-    for (final contact in person.contacts) {
-      await db.insert(
-        'contacts',
-        ContactModel.toMap(contact),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+    // 1. Verificar si ya existe una persona con este mismo número de documento
+    Person? existing;
+    if (person.documentNumber != null && person.documentNumber!.trim().isNotEmpty) {
+      existing = await getPersonByDocument(person.documentNumber!);
     }
 
-    // Agregar a la cola de sincronización si es offline
-    await _addToSyncQueue(db, person);
+    if (existing != null) {
+      // ── MODO ACTUALIZACIÓN Y FUSIÓN DE CONTACTOS ─────────────
+      final targetId = existing.id;
+
+      // Actualizar datos de la persona
+      await db.update(
+        'persons',
+        {
+          'first_name': person.firstName.isNotEmpty ? person.firstName : existing.firstName,
+          'last_name': person.lastName.isNotEmpty ? person.lastName : existing.lastName,
+          'document_type': person.documentType ?? existing.documentType,
+          'profession': (person.profession?.isNotEmpty ?? false) ? person.profession : existing.profession,
+          'address': (person.address?.isNotEmpty ?? false) ? person.address : existing.address,
+          'city': (person.city?.isNotEmpty ?? false) ? person.city : existing.city,
+          'updated_at': now,
+          'sync_status': 'pending',
+        },
+        where: 'id = ?',
+        whereArgs: [targetId],
+      );
+
+      // Contactos existentes (para evitar duplicar números)
+      final existingValues = existing.contacts
+          .map((c) => c.contactValue.trim().toLowerCase())
+          .toSet();
+
+      // Guardar números nuevos que sean diferentes (Contacto 2, Contacto 3, etc.)
+      int contactCount = existing.contacts.length;
+      for (final newContact in person.contacts) {
+        final val = newContact.contactValue.trim();
+        if (val.isNotEmpty && !existingValues.contains(val.toLowerCase())) {
+          contactCount++;
+          final label = (newContact.label != null && newContact.label!.trim().isNotEmpty)
+              ? newContact.label!.trim()
+              : 'Contacto $contactCount';
+
+          final contactToInsert = newContact.copyWith(
+            id: const Uuid().v4(),
+            personId: targetId,
+            label: label,
+            syncSource: 'mobile',
+            capturedAt: person.capturedAt,
+            createdAt: DateTime.now().toUtc(),
+            updatedAt: DateTime.now().toUtc(),
+          );
+          await db.insert(
+            'contacts',
+            ContactModel.toMap(contactToInsert),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          existingValues.add(val.toLowerCase());
+        }
+      }
+
+      final updatedPerson = await getPersonById(targetId);
+      if (updatedPerson != null) {
+        await _addToSyncQueue(db, updatedPerson);
+      }
+    } else {
+      // ── MODO INSERCIÓN NUEVA ────────────────────────────────
+      await db.insert(
+        'persons',
+        PersonModel.toMap(person),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // Guardar contactos
+      for (final contact in person.contacts) {
+        await db.insert(
+          'contacts',
+          ContactModel.toMap(contact),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      // Agregar a la cola de sincronización si es offline
+      await _addToSyncQueue(db, person);
+    }
   }
 
   @override
@@ -171,7 +256,7 @@ class PersonLocalDataSource implements PersonRepository {
         'created_at': DateTime.now().toUtc().toIso8601String(),
         'status': 'pending',
       },
-      conflictAlgorithm: ConflictAlgorithm.ignore,
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 }
