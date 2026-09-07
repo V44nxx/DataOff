@@ -3,7 +3,9 @@ class AppConstants {
   AppConstants._();
 
   // ── API ────────────────────────────────────────────────────
-  static const String apiBaseUrl = 'http://192.168.20.25:8000/api/v1'; // Red local Wi-Fi para celular
+  static const String apiBaseUrl = 'https://fastapi.dataoff.v44nxx.online/api/v1'; // Servidor Cloud (Funciona en cualquier red)
+  static const String localApiBaseUrl = 'http://192.168.20.25:8000/api/v1'; // Red local alternativa
+  static const String keyServerUrl = 'custom_server_url';
   static const int apiTimeoutSeconds = 30;
   static const int syncTimeoutSeconds = 60;
 

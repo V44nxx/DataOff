@@ -30,7 +30,26 @@ class ApiClient {
       responseBody: true,
       error: true,
     ));
+
+    _initCustomUrl();
   }
+
+  void _initCustomUrl() async {
+    try {
+      final savedUrl = await _storage.read(key: AppConstants.keyServerUrl);
+      if (savedUrl != null && savedUrl.trim().isNotEmpty) {
+        _dio.options.baseUrl = savedUrl.trim();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> setBaseUrl(String newUrl) async {
+    final cleanUrl = newUrl.trim();
+    _dio.options.baseUrl = cleanUrl;
+    await _storage.write(key: AppConstants.keyServerUrl, value: cleanUrl);
+  }
+
+  String get baseUrl => _dio.options.baseUrl;
 
   static ApiClient get instance {
     _instance ??= ApiClient._();
@@ -70,7 +89,7 @@ class _AuthInterceptor extends Interceptor {
 
         // Solicitar nuevo access token
         final response = await Dio().post(
-          '${AppConstants.apiBaseUrl}/auth/refresh',
+          '${_dio.options.baseUrl}/auth/refresh',
           data: {'refresh_token': refreshToken},
         );
 
