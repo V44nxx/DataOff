@@ -27,7 +27,13 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import SyncLogStatus, SyncOperation, SyncSource, SyncStatus
+from app.core.enums import (
+    ContactType,
+    SyncLogStatus,
+    SyncOperation,
+    SyncSource,
+    SyncStatus,
+)
 from app.models.person import Contact, Person
 from app.schemas.sync import SyncRecord, SyncRecordResult
 
@@ -313,6 +319,29 @@ def _process_person(
             )
 
 
+def _normalize_contact_type(raw: Any) -> ContactType:
+    """Normaliza cualquier texto de tipo de contacto al enum oficial de PostgreSQL."""
+    if isinstance(raw, ContactType):
+        return raw
+    if not raw:
+        return ContactType.PHONE
+    val = str(raw).lower().strip()
+    if "tel" in val or "cel" in val or "mov" in val or "phone" in val:
+        return ContactType.PHONE
+    if "mail" in val or "correo" in val:
+        return ContactType.EMAIL
+    if "what" in val:
+        return ContactType.WHATSAPP
+    if "face" in val:
+        return ContactType.FACEBOOK
+    if "insta" in val:
+        return ContactType.INSTAGRAM
+    try:
+        return ContactType(val)
+    except ValueError:
+        return ContactType.OTHER
+
+
 def _process_contact(
     db: Session,
     record: SyncRecord,
@@ -411,10 +440,33 @@ def _process_contact(
         captured_at_raw = data.get("captured_at")
         captured_at = _parse_datetime(captured_at_raw) or synced_at
 
+        # ── Regla de Escalera: Máximo 3 contactos activos por persona ──
+        # El nuevo contacto toma Puesto 1. Si ya tiene 3 o más, los más
+        # antiguos se desactivan (is_deleted = True).
+        active_contacts = (
+            db.query(Contact)
+            .filter(
+                Contact.person_id == person_uuid,
+                Contact.is_deleted == False,
+            )
+            .order_by(Contact.captured_at.asc(), Contact.created_at.asc())
+            .all()
+        )
+
+        while len(active_contacts) >= 3:
+            oldest = active_contacts.pop(0)
+            oldest.is_deleted = True
+            oldest.deleted_at = synced_at
+            oldest.updated_at = synced_at
+            logger.info(
+                f"Escalera max 3 contactos: se desactiva contacto antiguo {oldest.contact_value} "
+                f"de persona {person_uuid}"
+            )
+
         new_contact = Contact(
             id=uuid_id,
             person_id=person_uuid,
-            contact_type=data.get("contact_type", "Teléfono"),
+            contact_type=_normalize_contact_type(data.get("contact_type")),
             contact_value=contact_val,
             is_primary=data.get("is_primary", False),
             label=data.get("label"),
@@ -426,12 +478,29 @@ def _process_contact(
         parent_person.updated_at = synced_at
         parent_person.synced_at = synced_at
 
+        # Reordenar etiquetas de los contactos activos (Contacto 1, Contacto 2, Contacto 3)
+        # El más reciente toma Puesto 1 (Contacto 1) y desplaza a los anteriores
+        def _contact_sort_ts(ct: Contact) -> float:
+            dt = ct.captured_at or synced_at
+            if dt is None:
+                return 0.0
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc).timestamp()
+            return dt.timestamp()
+
+        all_active = [new_contact] + [c for c in active_contacts if not c.is_deleted]
+        all_active.sort(key=_contact_sort_ts, reverse=True)
+
+        for idx, c in enumerate(all_active[:3]):
+            c.label = f"Contacto {idx + 1}"
+            c.is_primary = (idx == 0)
+
         return SyncRecordResult(
             entity_type="contact",
             entity_id=str(uuid_id),
             operation=record.operation,
             status="inserted",
-            message=f"Contacto insertado/fusionado ({contact_val})",
+            message=f"Contacto insertado/escalera ({contact_val})",
         )
     else:
         return SyncRecordResult(

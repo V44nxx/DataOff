@@ -137,7 +137,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
           final existingPhones = existing.contacts.map((c) => c.contactValue.toLowerCase().trim()).toSet();
           final newCount = contacts.where((c) => !existingPhones.contains(c.contactValue.toLowerCase().trim())).length;
           if (newCount > 0) {
-            msg = 'Cédula actualizada: se agregó $newCount nuevo(s) contacto(s) adicional(es)';
+            msg = 'Cédula actualizada: $newCount nuevo(s) contacto(s) en Puesto 1 (orden de escalera)';
           } else {
             msg = 'Cédula actualizada con éxito (los números ya estaban registrados)';
           }
@@ -327,7 +327,7 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
                           ),
                           const SizedBox(height: 2),
                           const Text(
-                            'Los números nuevos que agregues abajo se guardarán como métodos de contacto adicionales (2° o 3°).',
+                            'Regla de escalera (máx 3): Cada número nuevo tomará el Puesto 1 (Contacto 1) y desplazará los anteriores hacia el 2 y 3. Si se supera el límite de 3, el más antiguo se descartará.',
                             style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Colors.black87),
                           ),
                         ],

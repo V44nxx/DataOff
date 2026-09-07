@@ -195,11 +195,23 @@ class SyncService {
     };
   }
 
+  String _normalizeContactType(String raw) {
+    final val = raw.toLowerCase().trim();
+    if (val.contains('tel') || val.contains('cel') || val.contains('mov') || val.contains('phone')) {
+      return 'phone';
+    }
+    if (val.contains('mail') || val.contains('correo')) return 'email';
+    if (val.contains('what')) return 'whatsapp';
+    if (val.contains('face')) return 'facebook';
+    if (val.contains('insta')) return 'instagram';
+    return 'phone';
+  }
+
   Map<String, dynamic> _contactToPayload(Contact contact) {
     return {
       'id': contact.id,
       'person_id': contact.personId,
-      'contact_type': contact.contactType,
+      'contact_type': _normalizeContactType(contact.contactType),
       'contact_value': contact.contactValue,
       'is_primary': contact.isPrimary,
       'label': contact.label,

@@ -103,36 +103,87 @@ class PersonLocalDataSource implements PersonRepository {
         whereArgs: [targetId],
       );
 
-      // Contactos existentes (para evitar duplicar números)
-      final existingValues = existing.contacts
+      // Contactos activos actuales ordenados de Contacto 1 a Contacto 3
+      final activeContacts = List<Contact>.from(existing.contacts);
+
+      final existingValues = activeContacts
           .map((c) => c.contactValue.trim().toLowerCase())
           .toSet();
 
-      // Guardar números nuevos que sean diferentes (Contacto 2, Contacto 3, etc.)
-      int contactCount = existing.contacts.length;
-      for (final newContact in person.contacts) {
-        final val = newContact.contactValue.trim();
+      // Identificar números nuevos a agregar (que sean diferentes a los ya existentes)
+      final incomingNew = <Contact>[];
+      for (final newC in person.contacts) {
+        final val = newC.contactValue.trim();
         if (val.isNotEmpty && !existingValues.contains(val.toLowerCase())) {
-          contactCount++;
-          final label = (newContact.label != null && newContact.label!.trim().isNotEmpty)
-              ? newContact.label!.trim()
-              : 'Contacto $contactCount';
+          incomingNew.add(newC);
+          existingValues.add(val.toLowerCase());
+        }
+      }
 
-          final contactToInsert = newContact.copyWith(
-            id: const Uuid().v4(),
-            personId: targetId,
+      if (incomingNew.isNotEmpty) {
+        // Enfoque Escalera (Máximo 3 contactos):
+        // El nuevo contacto toma el Puesto 1 (Contacto 1).
+        // El que estaba en Puesto 1 pasa al Puesto 2 (Contacto 2).
+        // El que estaba en Puesto 2 pasa al Puesto 3 (Contacto 3).
+        // El que estaba en Puesto 3 (o el más antiguo) se descarta.
+        final List<Contact> shiftedList = [];
+
+        // Insertar los nuevos al inicio (toman puesto 1)
+        for (int i = incomingNew.length - 1; i >= 0; i--) {
+          final c = incomingNew[i];
+          final contactId = const Uuid().v4();
+          final capTime = DateTime.now().toUtc();
+          shiftedList.insert(
+            0,
+            c.copyWith(
+              id: contactId,
+              personId: targetId,
+              syncSource: 'mobile',
+              capturedAt: capTime,
+              createdAt: capTime,
+              updatedAt: capTime,
+            ),
+          );
+        }
+
+        // Añadir los contactos previos detrás
+        shiftedList.addAll(activeContacts);
+
+        // Conservar solo máximo 3
+        final toKeep = shiftedList.take(3).toList();
+        final toEvict = shiftedList.skip(3).toList();
+
+        // 1. Desactivar los que superaron el límite de 3
+        for (final ev in toEvict) {
+          await db.update(
+            'contacts',
+            {
+              'is_deleted': 1,
+              'updated_at': now,
+            },
+            where: 'id = ?',
+            whereArgs: [ev.id],
+          );
+        }
+
+        // 2. Guardar o actualizar los 3 contactos con sus etiquetas de escalera
+        for (int i = 0; i < toKeep.length; i++) {
+          final c = toKeep[i];
+          final label = 'Contacto ${i + 1}';
+          final isPrimary = (i == 0);
+
+          final updatedContact = c.copyWith(
             label: label,
-            syncSource: 'mobile',
-            capturedAt: person.capturedAt,
-            createdAt: DateTime.now().toUtc(),
+            isPrimary: isPrimary,
+            personId: targetId,
             updatedAt: DateTime.now().toUtc(),
           );
+
           await db.insert(
             'contacts',
-            ContactModel.toMap(contactToInsert),
+            ContactModel.toMap(updatedContact),
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
-          existingValues.add(val.toLowerCase());
         }
       }
 
@@ -141,18 +192,39 @@ class PersonLocalDataSource implements PersonRepository {
         await _addToSyncQueue(db, updatedPerson);
       }
     } else {
-      // ── MODO INSERCIÓN NUEVA ────────────────────────────────
+      // ── MODO INSERCIÓN NUEVA (MÁXIMO 3 CONTACTOS) ───────────
       await db.insert(
         'persons',
         PersonModel.toMap(person),
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
-      // Guardar contactos
-      for (final contact in person.contacts) {
+      // Guardar contactos (máximo 3, etiquetados como Contacto 1, 2, 3)
+      final distinctContacts = <Contact>[];
+      final seenValues = <String>{};
+      for (final c in person.contacts) {
+        final val = c.contactValue.trim();
+        if (val.isNotEmpty && !seenValues.contains(val.toLowerCase())) {
+          distinctContacts.add(c);
+          seenValues.add(val.toLowerCase());
+        }
+      }
+
+      final contactsToSave = distinctContacts.take(3).toList();
+      for (int i = 0; i < contactsToSave.length; i++) {
+        final c = contactsToSave[i];
+        final label = 'Contacto ${i + 1}';
+        final isPrimary = (i == 0);
+
+        final contactToInsert = c.copyWith(
+          label: label,
+          isPrimary: isPrimary,
+          personId: person.id,
+        );
+
         await db.insert(
           'contacts',
-          ContactModel.toMap(contact),
+          ContactModel.toMap(contactToInsert),
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
@@ -258,7 +330,8 @@ class PersonLocalDataSource implements PersonRepository {
       'contacts',
       where: 'person_id = ? AND is_deleted = 0',
       whereArgs: [personId],
-      orderBy: 'captured_at ASC',  // Contactos ordenados por captura
+      orderBy: 'label ASC, captured_at DESC', // Contacto 1 primero, máx 3
+      limit: 3,
     );
     final contacts = contactMaps.map(ContactModel.fromMap).toList();
     return PersonModel.fromMap(map, contacts: contacts);
