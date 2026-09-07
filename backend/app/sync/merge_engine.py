@@ -192,7 +192,10 @@ def _process_person(
                 )
 
     if person_id_map is not None:
-        person_id_map[uuid_id] = existing_person.id if existing_person else uuid_id
+        target_parent_id = existing_person.id if existing_person else uuid_id
+        person_id_map[uuid_id] = target_parent_id
+        person_id_map[str(uuid_id)] = target_parent_id
+        person_id_map[str(uuid_id).lower()] = target_parent_id
 
     if record.operation == SyncOperation.DELETE:
         if existing_person:
@@ -343,9 +346,15 @@ def _process_contact(
         )
 
     # Remapear person_uuid si la persona padre fue fusionada por documento
-    if person_id_map and person_uuid in person_id_map:
+    if person_id_map:
         original_parent = person_uuid
-        person_uuid = person_id_map[person_uuid]
+        if person_uuid in person_id_map:
+            person_uuid = person_id_map[person_uuid]
+        elif str(person_uuid) in person_id_map:
+            person_uuid = person_id_map[str(person_uuid)]
+        elif str(person_uuid).lower() in person_id_map:
+            person_uuid = person_id_map[str(person_uuid).lower()]
+
         if original_parent != person_uuid:
             logger.info(
                 f"Contact {uuid_id}: person_id remapeado de {original_parent} a "

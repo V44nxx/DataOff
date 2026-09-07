@@ -231,16 +231,44 @@ class SyncService {
       }
     }
 
+    final failedPersonIds = <String>{};
+
+    for (final record in batch) {
+      final entityType = record['entity_type'] as String?;
+      final data = record['data'] as Map?;
+      final entityId = data?['id'] as String?;
+      if (entityId == null) continue;
+
+      final resultStatus = resultMap[entityId] ?? 'skipped';
+
+      if (entityType == 'contact') {
+        if (resultStatus == 'inserted' || resultStatus == 'updated' || resultStatus == 'skipped') {
+          await _personDS.markContactSynced(entityId);
+        } else if (resultStatus == 'failed') {
+          final parentId = data?['person_id'] as String?;
+          if (parentId != null) {
+            failedPersonIds.add(parentId);
+          }
+        }
+      } else if (entityType == 'person') {
+        if (resultStatus == 'failed') {
+          failedPersonIds.add(entityId);
+        }
+      }
+    }
+
     for (final record in batch) {
       if (record['entity_type'] != 'person') continue;
       final entityId = (record['data'] as Map)['id'] as String?;
       if (entityId == null) continue;
 
-      final resultStatus = resultMap[entityId] ?? 'skipped';
-      if (resultStatus == 'inserted' || resultStatus == 'updated' || resultStatus == 'skipped') {
-        await _personDS.markAsSynced(entityId);
-      } else if (resultStatus == 'failed') {
+      if (failedPersonIds.contains(entityId)) {
         await _personDS.markAsFailed(entityId);
+      } else {
+        final resultStatus = resultMap[entityId] ?? 'skipped';
+        if (resultStatus == 'inserted' || resultStatus == 'updated' || resultStatus == 'skipped') {
+          await _personDS.markAsSynced(entityId);
+        }
       }
     }
   }

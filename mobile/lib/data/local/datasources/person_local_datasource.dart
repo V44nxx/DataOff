@@ -177,12 +177,15 @@ class PersonLocalDataSource implements PersonRepository {
   @override
   Future<List<Person>> getPendingPersons() async {
     final db = await _db;
-    final maps = await db.query(
-      'persons',
-      where: 'sync_status = ?',
-      whereArgs: ['pending'],
-      orderBy: 'captured_at ASC',  // Enviar del más antiguo al más nuevo
-    );
+    final maps = await db.rawQuery('''
+      SELECT DISTINCT p.* FROM persons p
+      LEFT JOIN contacts c ON c.person_id = p.id
+      WHERE p.is_deleted = 0 AND (
+        p.sync_status != 'synced' OR
+        c.synced_at IS NULL
+      )
+      ORDER BY p.captured_at ASC
+    ''');
     return _personsWithContacts(db, maps);
   }
 
@@ -194,10 +197,15 @@ class PersonLocalDataSource implements PersonRepository {
   @override
   Future<int> countPending() async {
     final db = await _db;
-    final result = await db.rawQuery(
-      "SELECT COUNT(*) as count FROM persons WHERE sync_status = 'pending'",
-    );
-    return result.first['count'] as int;
+    final result = await db.rawQuery('''
+      SELECT COUNT(DISTINCT p.id) as count FROM persons p
+      LEFT JOIN contacts c ON c.person_id = p.id
+      WHERE p.is_deleted = 0 AND (
+        p.sync_status != 'synced' OR
+        c.synced_at IS NULL
+      )
+    ''');
+    return (result.first['count'] as int?) ?? 0;
   }
 
   // ── Marcar como sincronizado ─────────────────────────────
@@ -209,6 +217,17 @@ class PersonLocalDataSource implements PersonRepository {
       {'sync_status': 'synced', 'synced_at': now},
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  Future<void> markContactSynced(String contactId) async {
+    final db = await _db;
+    final now = DateTime.now().toUtc().toIso8601String();
+    await db.update(
+      'contacts',
+      {'synced_at': now},
+      where: 'id = ?',
+      whereArgs: [contactId],
     );
   }
 
