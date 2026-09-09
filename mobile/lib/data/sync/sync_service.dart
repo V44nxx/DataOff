@@ -184,6 +184,7 @@ class SyncService {
       'document_number': person.documentNumber,
       'birth_date': person.birthDate?.toIso8601String(),
       'gender': person.gender,
+      'profession': person.profession,
       'address': person.address,
       'city': person.city,
       'department': person.department,

@@ -247,6 +247,7 @@ def _process_person(
             city=data.get("city"),
             department=data.get("department"),
             country=data.get("country", "Colombia"),
+            profession=data.get("profession"),
             notes=data.get("notes"),
             captured_at=captured_at,       # ← INMUTABLE: fecha real de captura
             synced_at=synced_at,           # ← Asignado por el servidor
@@ -255,6 +256,7 @@ def _process_person(
             device_id=device_id,
         )
         db.add(new_person)
+        db.flush()
         logger.info(f"Person insertada: {uuid_id} (captured_at={captured_at})")
 
         return SyncRecordResult(
@@ -297,6 +299,7 @@ def _process_person(
                     setattr(existing_person, field, value)
             existing_person.updated_at = max(existing_updated_at, incoming_updated_at)
             existing_person.synced_at = synced_at
+            db.flush()
 
             action_msg = f"{len(updates)} campo(s) actualizados, {conflicts} conflicto(s) resueltos"
             logger.info(f"Person actualizada: {uuid_id} — {action_msg}")
@@ -421,6 +424,8 @@ def _process_contact(
     if record.operation == SyncOperation.DELETE:
         if existing_contact:
             existing_contact.is_deleted = True
+            existing_contact.updated_at = synced_at
+            db.flush()
             return SyncRecordResult(
                 entity_type="contact",
                 entity_id=str(uuid_id),
@@ -436,32 +441,35 @@ def _process_contact(
             message="Contacto no encontrado para eliminar",
         )
 
-    if existing_contact is None:
-        captured_at_raw = data.get("captured_at")
-        captured_at = _parse_datetime(captured_at_raw) or synced_at
+    captured_at_raw = data.get("captured_at")
+    captured_at = _parse_datetime(captured_at_raw) or synced_at
 
-        # ── Regla de Escalera: Máximo 3 contactos activos por persona ──
-        # El nuevo contacto toma Puesto 1. Si ya tiene 3 o más, los más
-        # antiguos se desactivan (is_deleted = True).
-        active_contacts = (
-            db.query(Contact)
-            .filter(
-                Contact.person_id == person_uuid,
-                Contact.is_deleted == False,
-            )
-            .order_by(Contact.captured_at.asc(), Contact.created_at.asc())
-            .all()
+    # Obtener contactos activos actuales de la persona
+    active_contacts = (
+        db.query(Contact)
+        .filter(
+            Contact.person_id == person_uuid,
+            Contact.is_deleted == False,
         )
+        .all()
+    )
 
-        while len(active_contacts) >= 3:
-            oldest = active_contacts.pop(0)
-            oldest.is_deleted = True
-            oldest.updated_at = synced_at
-            logger.info(
-                f"Escalera max 3 contactos: se desactiva contacto antiguo {oldest.contact_value} "
-                f"de persona {person_uuid}"
-            )
-
+    contact_record_status = "inserted"
+    if existing_contact is not None:
+        if existing_contact.is_deleted:
+            # Reactivar contacto previo
+            existing_contact.is_deleted = False
+            existing_contact.captured_at = captured_at
+            existing_contact.updated_at = synced_at
+            existing_contact.synced_at = synced_at
+            current_target_contact = existing_contact
+            contact_record_status = "updated"
+        else:
+            # Ya existe activo
+            existing_contact.synced_at = synced_at
+            current_target_contact = existing_contact
+            contact_record_status = "skipped"
+    else:
         new_contact = Contact(
             id=uuid_id,
             person_id=person_uuid,
@@ -474,41 +482,58 @@ def _process_contact(
             sync_source=SyncSource.MOBILE,
         )
         db.add(new_contact)
-        parent_person.updated_at = synced_at
-        parent_person.synced_at = synced_at
+        current_target_contact = new_contact
+        contact_record_status = "inserted"
 
-        # Reordenar etiquetas de los contactos activos (Contacto 1, Contacto 2, Contacto 3)
-        # El más reciente toma Puesto 1 (Contacto 1) y desplaza a los anteriores
-        def _contact_sort_ts(ct: Contact) -> float:
-            dt = ct.captured_at or synced_at
-            if dt is None:
-                return 0.0
-            if dt.tzinfo is None:
-                return dt.replace(tzinfo=timezone.utc).timestamp()
-            return dt.timestamp()
+    parent_person.updated_at = synced_at
+    parent_person.synced_at = synced_at
 
-        all_active = [new_contact] + [c for c in active_contacts if not c.is_deleted]
-        all_active.sort(key=_contact_sort_ts, reverse=True)
+    # ── Regla de Escalera: Máximo 3 contactos activos por persona ──
+    # Unir contactos activos y ordenar por fecha descendente (más nuevo en Puesto 1)
+    all_active = [c for c in active_contacts if c.id != current_target_contact.id and not c.is_deleted]
+    all_active.append(current_target_contact)
 
-        for idx, c in enumerate(all_active[:3]):
-            c.label = f"Contacto {idx + 1}"
-            c.is_primary = (idx == 0)
+    def _contact_sort_ts(ct: Contact) -> float:
+        dt = ct.captured_at or ct.created_at or synced_at
+        if dt is None:
+            return 0.0
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=timezone.utc).timestamp()
+        return dt.timestamp()
 
-        return SyncRecordResult(
-            entity_type="contact",
-            entity_id=str(uuid_id),
-            operation=record.operation,
-            status="inserted",
-            message=f"Contacto insertado/escalera ({contact_val})",
+    all_active.sort(key=_contact_sort_ts, reverse=True)
+
+    to_keep = all_active[:3]
+    to_evict = all_active[3:]
+
+    # Desalojar los que superen el límite de 3
+    for ev in to_evict:
+        ev.is_deleted = True
+        ev.updated_at = synced_at
+        logger.info(
+            f"Escalera max 3 contactos: se desactiva contacto antiguo {ev.contact_value} "
+            f"de persona {person_uuid}"
         )
-    else:
-        return SyncRecordResult(
-            entity_type="contact",
-            entity_id=str(uuid_id),
-            operation=record.operation,
-            status="skipped",
-            message=f"Contacto {contact_val} ya existe para esta persona",
-        )
+
+    # Re-etiquetar los hasta 3 contactos activos
+    for idx, c in enumerate(to_keep):
+        c.label = f"Contacto {idx + 1}"
+        c.is_primary = (idx == 0)
+        c.updated_at = synced_at
+
+    db.flush()
+
+    action_msg = "Contacto insertado/escalera" if contact_record_status == "inserted" else (
+        "Contacto reactivado/escalera" if contact_record_status == "updated" else "Contacto ya existe para esta persona"
+    )
+
+    return SyncRecordResult(
+        entity_type="contact",
+        entity_id=str(uuid_id),
+        operation=record.operation,
+        status=contact_record_status,
+        message=f"{action_msg} ({contact_val})",
+    )
 
 
 # ════════════════════════════════════════════════════════════════
@@ -571,6 +596,9 @@ class MergeEngine:
                 result.conflicts_resolved += 1
 
             result.add_result(record_result)
+
+        # Forzar flush de todas las personas creadas/modificadas antes de procesar contactos
+        db.flush()
 
         # ── Pasada 2: Contactos ────────────────────────────
         for record in contact_records:

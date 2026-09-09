@@ -176,6 +176,7 @@ class PersonLocalDataSource implements PersonRepository {
             label: label,
             isPrimary: isPrimary,
             personId: targetId,
+            resetSyncedAt: true,
             updatedAt: DateTime.now().toUtc(),
           );
 
