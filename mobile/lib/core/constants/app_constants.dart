@@ -38,6 +38,7 @@ class AppRoutes {
   static const String home     = '/home';
   static const String persons  = '/persons';
   static const String personNew  = '/persons/new';
+  static const String personEdit = '/persons/edit';
   static const String personDetail = '/persons/:id';
   static const String sync     = '/sync';
   static const String profile  = '/profile';

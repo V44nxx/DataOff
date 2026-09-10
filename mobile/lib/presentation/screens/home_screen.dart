@@ -150,6 +150,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _editPerson(Person person) async {
+    final saved = await context.push<bool>(AppRoutes.personEdit, extra: person);
+    if (saved == true || mounted) {
+      await _loadPersons();
+    }
+  }
+
   String _formatDate(DateTime dt) {
     final local = dt.toLocal();
     final day = local.day.toString().padLeft(2, '0');
@@ -571,145 +578,181 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cabecera de la Tarjeta
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar con Iniciales
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      initials,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Nombre y Cédula
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          person.fullName,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                          ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _editPerson(person),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Cabecera de la Tarjeta
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Avatar con Iniciales
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Text(
-                                '${person.documentType ?? 'CC'} ${person.documentNumber ?? 'Sin Doc'}',
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF475569),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Nombre y Cédula
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            person.fullName,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Text(
+                                  '${person.documentType ?? 'CC'} ${person.documentNumber ?? 'Sin Doc'}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF475569),
+                                  ),
                                 ),
                               ),
+                              if (person.profession != null && person.profession!.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    person.profession!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Botón Editar + Badge de Estado de Sincronización
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () => _editPerson(person),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFBFDBFE)),
                             ),
-                            if (person.profession != null && person.profession!.isNotEmpty) ...[
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  person.profession!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_rounded, size: 13, color: Color(0xFF2563EB)),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Editar',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isSynced
+                                ? const Color(0xFFDCFCE7)
+                                : isPending
+                                    ? const Color(0xFFFEF3C7)
+                                    : const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSynced
+                                  ? const Color(0xFF86EFAC)
+                                  : isPending
+                                      ? const Color(0xFFFDE68A)
+                                      : const Color(0xFFFCA5A5),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isSynced
+                                    ? Icons.check_circle_rounded
+                                    : isPending
+                                        ? Icons.access_time_rounded
+                                        : Icons.error_outline_rounded,
+                                size: 12,
+                                color: isSynced
+                                    ? const Color(0xFF16A34A)
+                                    : isPending
+                                        ? const Color(0xFFD97706)
+                                        : const Color(0xFFDC2626),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                isSynced
+                                    ? 'Sincronizado'
+                                    : isPending
+                                        ? 'Pendiente'
+                                        : 'Fallo',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSynced
+                                      ? const Color(0xFF16A34A)
+                                      : isPending
+                                          ? const Color(0xFFB45309)
+                                          : const Color(0xFFB91C1C),
                                 ),
                               ),
                             ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Badge de Estado de Sincronización
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isSynced
-                          ? const Color(0xFFDCFCE7)
-                          : isPending
-                              ? const Color(0xFFFEF3C7)
-                              : const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSynced
-                            ? const Color(0xFF86EFAC)
-                            : isPending
-                                ? const Color(0xFFFDE68A)
-                                : const Color(0xFFFCA5A5),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isSynced
-                              ? Icons.check_circle_rounded
-                              : isPending
-                                  ? Icons.access_time_rounded
-                                  : Icons.error_outline_rounded,
-                          size: 12,
-                          color: isSynced
-                              ? const Color(0xFF16A34A)
-                              : isPending
-                                  ? const Color(0xFFD97706)
-                                  : const Color(0xFFDC2626),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          isSynced
-                              ? 'Sincronizado'
-                              : isPending
-                                  ? 'Pendiente'
-                                  : 'Fallo',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: isSynced
-                                ? const Color(0xFF16A34A)
-                                : isPending
-                                    ? const Color(0xFFB45309)
-                                    : const Color(0xFFB91C1C),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
             // Ubicación (Ciudad / Dirección)
             if ((person.city != null && person.city!.isNotEmpty) ||
@@ -856,6 +899,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

@@ -76,9 +76,12 @@ class PersonLocalDataSource implements PersonRepository {
     final db = await _db;
     final now = DateTime.now().toUtc().toIso8601String();
 
-    // 1. Verificar si ya existe una persona con este mismo número de documento
+    // 1. Verificar si ya existe una persona (por ID primero para edición, o por cédula)
     Person? existing;
-    if (person.documentNumber != null && person.documentNumber!.trim().isNotEmpty) {
+    if (person.id.isNotEmpty) {
+      existing = await getPersonById(person.id);
+    }
+    if (existing == null && person.documentNumber != null && person.documentNumber!.trim().isNotEmpty) {
       existing = await getPersonByDocument(person.documentNumber!);
     }
 
@@ -93,15 +96,33 @@ class PersonLocalDataSource implements PersonRepository {
           'first_name': person.firstName.isNotEmpty ? person.firstName : existing.firstName,
           'last_name': person.lastName.isNotEmpty ? person.lastName : existing.lastName,
           'document_type': person.documentType ?? existing.documentType,
-          'profession': (person.profession?.isNotEmpty ?? false) ? person.profession : existing.profession,
-          'address': (person.address?.isNotEmpty ?? false) ? person.address : existing.address,
-          'city': (person.city?.isNotEmpty ?? false) ? person.city : existing.city,
+          'document_number': person.documentNumber ?? existing.documentNumber,
+          'profession': person.profession,
+          'address': person.address,
+          'city': person.city,
           'updated_at': now,
           'sync_status': 'pending',
         },
         where: 'id = ?',
         whereArgs: [targetId],
       );
+
+      // Actualizar tipos o etiquetas de contactos existentes si cambiaron
+      for (final c in person.contacts) {
+        final val = c.contactValue.trim();
+        if (val.isNotEmpty) {
+          await db.update(
+            'contacts',
+            {
+              'contact_type': c.contactType,
+              'label': c.label,
+              'updated_at': now,
+            },
+            where: 'person_id = ? AND LOWER(contact_value) = ?',
+            whereArgs: [targetId, val.toLowerCase()],
+          );
+        }
+      }
 
       // Contactos activos actuales ordenados de Contacto 1 a Contacto 3
       final activeContacts = List<Contact>.from(existing.contacts);

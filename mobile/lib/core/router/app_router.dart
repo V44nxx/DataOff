@@ -5,6 +5,7 @@ import '../constants/app_constants.dart';
 import '../../presentation/screens/home_screen.dart';
 import '../../presentation/screens/login_screen.dart';
 import '../../presentation/screens/person_form_screen.dart';
+import '../../domain/entities/person.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../di/injection.dart';
 
@@ -35,7 +36,17 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.personNew,
-      builder: (context, state) => const PersonFormScreen(),
+      builder: (context, state) {
+        final person = state.extra as Person?;
+        return PersonFormScreen(personToEdit: person);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.personEdit,
+      builder: (context, state) {
+        final person = state.extra as Person?;
+        return PersonFormScreen(personToEdit: person);
+      },
     ),
   ],
 );
