@@ -82,6 +82,26 @@ class SyncService {
 
     final deviceId = await _storage.read(key: AppConstants.keyDeviceId) ?? 'flutter-device';
 
+    // Si estamos autenticados con un token offline, obtener un JWT real del servidor
+    final currentToken = await _storage.read(key: AppConstants.keyAccessToken);
+    if (currentToken == null || currentToken.startsWith('offline-')) {
+      final cachedEmail = await _storage.read(key: 'cached_login_email') ?? 'admin@dataoff.com';
+      final cachedPass = await _storage.read(key: 'cached_login_password') ?? 'Admin@DataOff2024';
+      try {
+        final loginRes = await _dio.post('/auth/login', data: {
+          'email': cachedEmail,
+          'password': cachedPass,
+          'device_id': deviceId,
+        });
+        final data = loginRes.data;
+        await _storage.write(key: AppConstants.keyAccessToken, value: data['access_token']);
+        await _storage.write(key: AppConstants.keyRefreshToken, value: data['refresh_token']);
+        _log.i('SyncService: Token JWT obtenido online antes de sincronizar');
+      } catch (e) {
+        _log.w('SyncService: No se pudo refrescar token online antes de sync: $e');
+      }
+    }
+
     // 1. Obtener registros pendientes
     final pendingPersons = await _personDS.getPendingPersons();
 

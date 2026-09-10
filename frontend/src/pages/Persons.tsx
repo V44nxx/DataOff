@@ -146,9 +146,16 @@ export default function PersonsPage() {
                         <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>
                           {person.first_name} {person.last_name}
                         </p>
-                        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                          {person.id.slice(0, 8)}...
-                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          {person.profession && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
+                              {person.profession}
+                            </span>
+                          )}
+                          <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                            {person.id.slice(0, 8)}...
+                          </span>
+                        </div>
                       </div>
                     </td>
                     <td>

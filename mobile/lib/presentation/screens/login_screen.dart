@@ -34,20 +34,88 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       final auth = getIt<AuthRepository>();
-      await auth.login(
-        _emailController.text.trim(),
-        _passwordController.text,
+      final email = _emailController.text.trim();
+      final password = _passwordController.text;
+
+      final result = await auth.login(
+        email,
+        password,
         deviceId: 'flutter-device-1',
       );
       if (mounted) {
+        if (result.accessToken.startsWith('offline-')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.wifi_off_rounded, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('Modo Offline: Sesión iniciada localmente')),
+                ],
+              ),
+              backgroundColor: Colors.teal,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
         context.go(AppRoutes.home);
       }
     } catch (e) {
       if (mounted) {
+        String msg = e.toString();
+        if (msg.startsWith('Exception: ')) {
+          msg = msg.substring(11);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text(msg),
             backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _loginOfflineDirect() async {
+    setState(() => _isLoading = true);
+    try {
+      final auth = getIt<AuthRepository>();
+      final result = await auth.loginOffline(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.offline_pin_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Acceso en Modo Offline (${result.user.fullName})')),
+              ],
+            ),
+            backgroundColor: Colors.teal,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        context.go(AppRoutes.home);
+      }
+    } catch (e) {
+      if (mounted) {
+        String msg = e.toString();
+        if (msg.startsWith('Exception: ')) {
+          msg = msg.substring(11);
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -241,6 +309,30 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
                       : const Text('Iniciar Sesión', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _loginOfflineDirect,
+                  icon: const Icon(Icons.wifi_off_rounded, size: 20, color: Color(0xFF10B981)),
+                  label: const Text(
+                    'Acceder en Modo Offline (Sin Internet)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF10B981),
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Color(0xFF10B981), width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    backgroundColor: const Color(0xFF10B981).withOpacity(0.08),
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

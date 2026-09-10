@@ -19,4 +19,7 @@ abstract class AuthRepository {
 
   /// Obtiene el access token actual
   Future<String?> getAccessToken();
+
+  /// Login Offline: permite acceder sin conexión a internet usando credenciales cacheadas o administrador offline
+  Future<AuthResult> loginOffline({String? email, String? password});
 }

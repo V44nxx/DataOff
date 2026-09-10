@@ -95,6 +95,7 @@ export interface PersonListItem {
   document_type?: DocumentType
   document_number?: string
   city?: string
+  profession?: string
   sync_source: SyncSource
   sync_status: SyncStatus
   captured_at: string

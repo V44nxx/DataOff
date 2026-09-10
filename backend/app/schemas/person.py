@@ -127,6 +127,7 @@ class PersonListResponse(BaseModel):
     document_type: Optional[DocumentType] = None
     document_number: Optional[str] = None
     city: Optional[str] = None
+    profession: Optional[str] = None
     sync_source: SyncSource
     sync_status: SyncStatus
     captured_at: datetime
