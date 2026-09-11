@@ -49,13 +49,15 @@ export default function PersonFormPage() {
           country: person.country || 'Colombia',
           profession: person.profession || '',
           contacts: person.contacts?.length 
-            ? person.contacts.map(c => ({
+            ? person.contacts.map((c, idx) => ({
+                id: c.id,
                 contact_type: c.contact_type,
                 contact_value: c.contact_value,
-                is_primary: c.is_primary,
-                label: c.label || ''
+                is_primary: idx === 0,
+                label: c.label || `Contacto ${idx + 1}`,
+                captured_at: c.captured_at
               }))
-            : [{ contact_type: 'phone', contact_value: '', is_primary: true, label: 'Principal' }]
+            : [{ contact_type: 'phone', contact_value: '', is_primary: true, label: 'Contacto 1' }]
         })
       }).catch(() => {
         toast.error('Error al cargar la persona')
@@ -215,9 +217,18 @@ export default function PersonFormPage() {
       toast.error('Solo puedes tener un máximo de 3 contactos')
       return
     }
+    // Regla de escalera: El nuevo contacto se agrega arriba (Puesto 1)
+    // y los anteriores se desplazan a Puesto 2 y 3
     setFormData(prev => ({
       ...prev,
-      contacts: [...(prev.contacts || []), { contact_type: 'phone', contact_value: '', is_primary: false, label: '' }]
+      contacts: [
+        { contact_type: 'phone', contact_value: '', is_primary: true, label: 'Contacto 1' },
+        ...(prev.contacts || []).map((c, i) => ({
+          ...c,
+          is_primary: false,
+          label: `Contacto ${i + 2}`
+        }))
+      ]
     }))
   }
 
@@ -374,56 +385,63 @@ export default function PersonFormPage() {
             {formData.contacts?.map((contact, index) => {
               const isPhoneType = contact.contact_type === 'phone' || contact.contact_type === 'whatsapp'
               return (
-                <div key={index} className="p-3 sm:p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
-                  <div className="flex flex-col gap-1.5 w-full sm:w-1/4">
-                    <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Tipo</label>
-                    <select 
-                      className="input text-sm" 
-                      value={contact.contact_type} 
-                      onChange={(e) => handleContactChange(index, 'contact_type', e.target.value)}
-                    >
-                      <option value="phone">Teléfono Móvil</option>
-                      <option value="whatsapp">WhatsApp</option>
-                      <option value="email">Correo Electrónico</option>
-                      <option value="facebook">Facebook</option>
-                      <option value="instagram">Instagram</option>
-                      <option value="other">Otro</option>
-                    </select>
+                <div key={index} className="p-3 sm:p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 flex flex-col gap-3">
+                  <div className="flex items-center justify-between border-b border-slate-700/40 pb-2">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                      {index === 0 ? 'Contacto 1 (Puesto 1 - Principal / Más reciente)' : `Contacto ${index + 1} (Puesto ${index + 1})`}
+                    </span>
+                    <button type="button" onClick={() => removeContact(index)} className="btn btn-ghost btn-icon p-1 text-red-400 hover:text-red-300" title="Eliminar contacto">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                  <div className="flex flex-col gap-1.5 w-full sm:flex-1">
-                    <div className="flex justify-between items-center">
-                      <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-                        Valor {isPhoneType && <span className="text-xs text-blue-400 font-normal">(10 dígitos)</span>}
-                      </label>
-                      {isPhoneType && (
-                        <span className={`text-xs ${contact.contact_value.length === 10 ? 'text-emerald-400 font-semibold' : 'text-amber-400'}`}>
-                          {contact.contact_value.length}/10
-                        </span>
-                      )}
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+                    <div className="flex flex-col gap-1.5 w-full sm:w-1/4">
+                      <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Tipo</label>
+                      <select 
+                        className="input text-sm" 
+                        value={contact.contact_type} 
+                        onChange={(e) => handleContactChange(index, 'contact_type', e.target.value)}
+                      >
+                        <option value="phone">Teléfono Móvil</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="email">Correo Electrónico</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="other">Otro</option>
+                      </select>
                     </div>
-                    <input 
-                      type={isPhoneType ? 'tel' : 'text'}
-                      inputMode={isPhoneType ? 'numeric' : 'text'}
-                      maxLength={isPhoneType ? 10 : undefined}
-                      className="input text-sm" 
-                      value={contact.contact_value} 
-                      placeholder={isPhoneType ? 'Ej. 3001234567 (10 dígitos)' : 'Valor de contacto...'}
-                      onChange={(e) => handleContactChange(index, 'contact_value', e.target.value)} 
-                    />
+                    <div className="flex flex-col gap-1.5 w-full sm:flex-1">
+                      <div className="flex justify-between items-center">
+                        <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+                          Valor {isPhoneType && <span className="text-xs text-blue-400 font-normal">(10 dígitos)</span>}
+                        </label>
+                        {isPhoneType && (
+                          <span className={`text-xs ${contact.contact_value.length === 10 ? 'text-emerald-400 font-semibold' : 'text-amber-400'}`}>
+                            {contact.contact_value.length}/10
+                          </span>
+                        )}
+                      </div>
+                      <input 
+                        type={isPhoneType ? 'tel' : 'text'}
+                        inputMode={isPhoneType ? 'numeric' : 'text'}
+                        maxLength={isPhoneType ? 10 : undefined}
+                        className="input text-sm" 
+                        value={contact.contact_value} 
+                        placeholder={isPhoneType ? 'Ej. 3001234567 (10 dígitos)' : 'Valor de contacto...'}
+                        onChange={(e) => handleContactChange(index, 'contact_value', e.target.value)} 
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 w-full sm:w-1/4">
+                      <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Etiqueta</label>
+                      <input 
+                        type="text" 
+                        className="input text-sm" 
+                        value={contact.label || ''} 
+                        placeholder="Ej. Personal / Trabajo"
+                        onChange={(e) => handleContactChange(index, 'label', e.target.value)} 
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1.5 w-full sm:w-1/4">
-                    <label className="text-xs sm:text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>Etiqueta</label>
-                    <input 
-                      type="text" 
-                      className="input text-sm" 
-                      value={contact.label || ''} 
-                      placeholder="Ej. Personal / Trabajo"
-                      onChange={(e) => handleContactChange(index, 'label', e.target.value)} 
-                    />
-                  </div>
-                  <button type="button" onClick={() => removeContact(index)} className="btn btn-ghost btn-icon self-end sm:self-auto sm:mb-1 p-2 text-red-400 hover:text-red-300" title="Eliminar contacto">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
                 </div>
               )
             })}

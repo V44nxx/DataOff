@@ -265,7 +265,12 @@ class _PersonFormScreenState extends State<PersonFormScreen> {
                   color: Colors.blueAccent,
                 ),
                 const SizedBox(width: 6),
-                Text('Contacto ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  index == 0
+                      ? 'Contacto 1 (Puesto 1 - Principal / Reciente)'
+                      : 'Contacto ${index + 1} (Puesto ${index + 1})',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
                 if (isPhone)
                   const Text(' (10 dígitos)', style: TextStyle(fontSize: 11, color: Colors.grey)),
               ],

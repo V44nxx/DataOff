@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 from app.core.enums import (
     ContactType,
@@ -103,7 +103,7 @@ class PersonUpdate(BaseModel):
 
 class PersonResponse(PersonBase):
     """Respuesta completa con contactos anidados."""
-    model_config = {"from_attributes": True}
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
     id: UUID
     user_id: Optional[UUID] = None
@@ -114,7 +114,10 @@ class PersonResponse(PersonBase):
     is_deleted: bool
     created_at: datetime
     updated_at: datetime
-    contacts: List[ContactResponse] = []
+    contacts: List[ContactResponse] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("active_contacts", "contacts"),
+    )
 
 
 class PersonListResponse(BaseModel):

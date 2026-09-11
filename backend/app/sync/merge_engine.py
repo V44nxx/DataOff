@@ -522,6 +522,7 @@ def _process_contact(
         c.updated_at = synced_at
 
     db.flush()
+    db.expire(parent_person, ["contacts"])
 
     action_msg = "Contacto insertado/escalera" if contact_record_status == "inserted" else (
         "Contacto reactivado/escalera" if contact_record_status == "updated" else "Contacto ya existe para esta persona"

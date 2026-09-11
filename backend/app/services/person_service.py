@@ -2,7 +2,7 @@
 DataOff — Servicio de Personas
 Lógica de negocio para CRUD de personas y contactos.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
@@ -80,8 +80,20 @@ def _apply_contacts_escalera(
         if c.contact_value
     }
 
+    # Determinar el timestamp base garantizado estrictamente más reciente que cualquier existente
+    existing_timestamps = [
+        c.captured_at for c in active_contacts if c.captured_at
+    ]
+    max_existing_dt = max(existing_timestamps, default=now)
+    if max_existing_dt.tzinfo is None:
+        max_existing_dt = max_existing_dt.replace(tzinfo=timezone.utc)
+    now_utc = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
+    base_ts = max(now_utc, max_existing_dt)
+
     newly_added: list[Contact] = []
-    for cd in (incoming_contacts or []):
+    incoming_list = list(incoming_contacts or [])
+
+    for i, cd in enumerate(incoming_list):
         val = getattr(cd, "contact_value", None)
         if val is None and isinstance(cd, dict):
             val = cd.get("contact_value")
@@ -103,12 +115,25 @@ def _apply_contacts_escalera(
         cap_at = getattr(cd, "captured_at", None)
         if cap_at is None and isinstance(cd, dict):
             cap_at = cd.get("captured_at")
-        cap_at = cap_at or now
-        if isinstance(cap_at, str):
-            try:
-                cap_at = datetime.fromisoformat(cap_at.replace("Z", "+00:00"))
-            except ValueError:
-                cap_at = now
+
+        # Asignar timestamp strictly newer para que el nuevo tome Puesto 1.
+        # Si vienen múltiples nuevos, el primero en la lista toma el timestamp más alto.
+        offset_seconds = len(incoming_list) - i
+        assigned_cap_at = base_ts + timedelta(seconds=offset_seconds)
+        if cap_at:
+            if isinstance(cap_at, str):
+                try:
+                    parsed_dt = datetime.fromisoformat(cap_at.replace("Z", "+00:00"))
+                    if parsed_dt.tzinfo is None:
+                        parsed_dt = parsed_dt.replace(tzinfo=timezone.utc)
+                    if parsed_dt > base_ts:
+                        assigned_cap_at = parsed_dt
+                except ValueError:
+                    pass
+            elif isinstance(cap_at, datetime):
+                parsed_dt = cap_at if cap_at.tzinfo is not None else cap_at.replace(tzinfo=timezone.utc)
+                if parsed_dt > base_ts:
+                    assigned_cap_at = parsed_dt
 
         new_c = Contact(
             id=cid,
@@ -117,7 +142,7 @@ def _apply_contacts_escalera(
             contact_value=val,
             is_primary=False,
             label=None,
-            captured_at=cap_at,
+            captured_at=assigned_cap_at,
             synced_at=now,
             sync_source=sync_source,
             is_deleted=False,
@@ -144,13 +169,14 @@ def _apply_contacts_escalera(
         old_c.is_deleted = True
         old_c.updated_at = now
 
-    # Re-etiquetar los hasta 3 contactos activos
+    # Re-etiquetar los hasta 3 contactos activos: Puesto 1 = Contacto 1, Puesto 2 = Contacto 2, Puesto 3 = Contacto 3
     for idx, c in enumerate(to_keep):
         c.label = f"Contacto {idx + 1}"
         c.is_primary = (idx == 0)
         c.updated_at = now
 
     db.flush()
+    db.expire(person, ["contacts"])
     return to_keep
 
 
@@ -274,9 +300,6 @@ class PersonService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Persona {person_id} no encontrada",
             )
-        # Filtrar únicamente contactos activos y ordenarlos por etiqueta
-        person.contacts = [c for c in person.contacts if not c.is_deleted]
-        person.contacts.sort(key=lambda c: c.label or "Contacto 99")
         return person
 
     def list_persons(

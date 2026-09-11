@@ -6,7 +6,7 @@ Los contactos se ordenan por captured_at (fecha real de captura).
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text, desc, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -103,8 +103,25 @@ class Person(UUIDMixin, TimestampMixin, Base):
         "Contact",
         back_populates="person",
         cascade="all, delete-orphan",
-        order_by="Contact.captured_at",   # Ordenados por fecha real de captura
+        order_by=lambda: (desc(Contact.captured_at), Contact.label.asc()),   # Más recientes primero (Escalera)
     )
+
+    @property
+    def active_contacts(self) -> list["Contact"]:
+        """Contactos activos (no eliminados), ordenados por regla de escalera (máx 3)."""
+        active = [c for c in self.contacts if not c.is_deleted]
+        def _ladder_sort_key(c: "Contact") -> tuple[int, float]:
+            lbl = (c.label or "").strip()
+            slot = 99
+            if lbl.startswith("Contacto "):
+                try:
+                    slot = int(lbl.split(" ")[1])
+                except (ValueError, IndexError):
+                    slot = 99
+            ts = c.captured_at.timestamp() if c.captured_at else 0.0
+            return (slot, -ts)
+        active.sort(key=_ladder_sort_key)
+        return active[:3]
 
     def __repr__(self) -> str:
         return f"<Person id={self.id} name={self.first_name} {self.last_name}>"

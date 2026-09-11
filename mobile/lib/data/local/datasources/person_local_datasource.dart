@@ -149,13 +149,14 @@ class PersonLocalDataSource implements PersonRepository {
         // El que estaba en Puesto 3 (o el más antiguo) se descarta.
         final List<Contact> shiftedList = [];
 
-        // Insertar los nuevos al inicio (toman puesto 1)
-        for (int i = incomingNew.length - 1; i >= 0; i--) {
+        final baseTime = DateTime.now().toUtc();
+        // Insertar los nuevos al inicio (toman puesto 1).
+        // Si hay varios nuevos, el primero en la lista toma el timestamp más alto.
+        for (int i = 0; i < incomingNew.length; i++) {
           final c = incomingNew[i];
           final contactId = const Uuid().v4();
-          final capTime = DateTime.now().toUtc();
-          shiftedList.insert(
-            0,
+          final capTime = baseTime.add(Duration(seconds: incomingNew.length - i));
+          shiftedList.add(
             c.copyWith(
               id: contactId,
               personId: targetId,
@@ -233,15 +234,18 @@ class PersonLocalDataSource implements PersonRepository {
       }
 
       final contactsToSave = distinctContacts.take(3).toList();
+      final baseCapTime = DateTime.now().toUtc();
       for (int i = 0; i < contactsToSave.length; i++) {
         final c = contactsToSave[i];
         final label = 'Contacto ${i + 1}';
         final isPrimary = (i == 0);
+        final capTime = baseCapTime.add(Duration(seconds: contactsToSave.length - i));
 
         final contactToInsert = c.copyWith(
           label: label,
           isPrimary: isPrimary,
           personId: person.id,
+          capturedAt: c.capturedAt ?? capTime,
         );
 
         await db.insert(
@@ -352,7 +356,7 @@ class PersonLocalDataSource implements PersonRepository {
       'contacts',
       where: 'person_id = ? AND is_deleted = 0',
       whereArgs: [personId],
-      orderBy: 'label ASC, captured_at DESC', // Contacto 1 primero, máx 3
+      orderBy: "CASE WHEN label LIKE 'Contacto %' THEN CAST(SUBSTR(label, 10) AS INTEGER) ELSE 99 END ASC, captured_at DESC", // Contacto 1 primero, máx 3
       limit: 3,
     );
     final contacts = contactMaps.map(ContactModel.fromMap).toList();
