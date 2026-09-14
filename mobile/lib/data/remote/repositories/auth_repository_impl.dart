@@ -17,7 +17,12 @@ class AuthRepositoryImpl implements AuthRepository {
 
   AuthRepositoryImpl()
       : _dio = ApiClient.instance.dio,
-        _storage = const FlutterSecureStorage();
+        _storage = const FlutterSecureStorage(
+          aOptions: AndroidOptions(
+            encryptedSharedPreferences: true,
+            resetOnError: true,
+          ),
+        );
 
   @override
   Future<AuthResult> login(String email, String password, {String? deviceId}) async {
@@ -186,35 +191,54 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
-    await _storage.deleteAll();
+    try {
+      await _storage.deleteAll();
+    } catch (_) {}
   }
 
   @override
   Future<bool> isLoggedIn() async {
-    final token = await _storage.read(key: AppConstants.keyAccessToken);
-    return token != null;
+    try {
+      final token = await _storage.read(key: AppConstants.keyAccessToken);
+      return token != null && token.isNotEmpty;
+    } catch (e) {
+      // Si el KeyStore o SharedPreferences están corruptos o desincronizados tras reinstalar,
+      // limpiamos los datos huérfanos para evitar que la aplicación se congele en pantalla negra.
+      try {
+        await _storage.deleteAll();
+      } catch (_) {}
+      return false;
+    }
   }
 
   @override
   Future<UserEntity?> getCurrentUser() async {
-    final id = await _storage.read(key: AppConstants.keyUserId);
-    final role = await _storage.read(key: AppConstants.keyUserRole);
-    final name = await _storage.read(key: AppConstants.keyUserName);
-    
-    if (id != null && role != null && name != null) {
-       return UserEntity(
-         id: id,
-         email: '',
-         fullName: name,
-         role: role,
-         createdAt: DateTime.now(),
-       );
+    try {
+      final id = await _storage.read(key: AppConstants.keyUserId);
+      final role = await _storage.read(key: AppConstants.keyUserRole);
+      final name = await _storage.read(key: AppConstants.keyUserName);
+
+      if (id != null && role != null && name != null) {
+        return UserEntity(
+          id: id,
+          email: '',
+          fullName: name,
+          role: role,
+          createdAt: DateTime.now(),
+        );
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
-    return null;
   }
 
   @override
   Future<String?> getAccessToken() async {
-    return _storage.read(key: AppConstants.keyAccessToken);
+    try {
+      return await _storage.read(key: AppConstants.keyAccessToken);
+    } catch (_) {
+      return null;
+    }
   }
 }

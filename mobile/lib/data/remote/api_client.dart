@@ -11,7 +11,12 @@ class ApiClient {
   late final FlutterSecureStorage _storage;
 
   ApiClient._() {
-    _storage = const FlutterSecureStorage();
+    _storage = const FlutterSecureStorage(
+      aOptions: AndroidOptions(
+        encryptedSharedPreferences: true,
+        resetOnError: true,
+      ),
+    );
     _dio = Dio(
       BaseOptions(
         baseUrl: AppConstants.apiBaseUrl,
@@ -46,7 +51,9 @@ class ApiClient {
   Future<void> setBaseUrl(String newUrl) async {
     final cleanUrl = newUrl.trim();
     _dio.options.baseUrl = cleanUrl;
-    await _storage.write(key: AppConstants.keyServerUrl, value: cleanUrl);
+    try {
+      await _storage.write(key: AppConstants.keyServerUrl, value: cleanUrl);
+    } catch (_) {}
   }
 
   String get baseUrl => _dio.options.baseUrl;
@@ -69,10 +76,12 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    final token = await _storage.read(key: AppConstants.keyAccessToken);
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
-    }
+    try {
+      final token = await _storage.read(key: AppConstants.keyAccessToken);
+      if (token != null) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
+    } catch (_) {}
     handler.next(options);
   }
 

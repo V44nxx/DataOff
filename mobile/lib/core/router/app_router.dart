@@ -18,12 +18,19 @@ final GoRouter appRouter = GoRouter(
         body: Center(child: CircularProgressIndicator()),
       ),
       redirect: (context, state) async {
-        final authRepo = getIt<AuthRepository>();
-        final isLoggedIn = await authRepo.isLoggedIn();
-        if (isLoggedIn) {
-          return AppRoutes.home;
+        try {
+          final authRepo = getIt<AuthRepository>();
+          final isLoggedIn = await authRepo.isLoggedIn().timeout(
+            const Duration(seconds: 3),
+            onTimeout: () => false,
+          );
+          if (isLoggedIn) {
+            return AppRoutes.home;
+          }
+          return AppRoutes.login;
+        } catch (_) {
+          return AppRoutes.login;
         }
-        return AppRoutes.login;
       },
     ),
     GoRoute(

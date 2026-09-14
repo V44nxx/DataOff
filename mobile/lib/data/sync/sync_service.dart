@@ -55,7 +55,12 @@ class SyncService {
     required PersonLocalDataSource personDataSource,
   })  : _personDS = personDataSource,
         _dio = ApiClient.instance.dio,
-        _storage = const FlutterSecureStorage(),
+        _storage = const FlutterSecureStorage(
+          aOptions: AndroidOptions(
+            encryptedSharedPreferences: true,
+            resetOnError: true,
+          ),
+        ),
         _log = Logger(printer: PrettyPrinter(methodCount: 0));
 
   // ── Verificar conectividad ────────────────────────────────

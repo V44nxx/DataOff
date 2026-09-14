@@ -8,7 +8,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Inicializar dependencias y base de datos local
-  await setupDependencies();
+  try {
+    await setupDependencies();
+  } catch (e) {
+    debugPrint('Error al inicializar dependencias: $e');
+  }
 
   runApp(const DataOffApp());
 }
