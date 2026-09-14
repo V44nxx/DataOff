@@ -28,3 +28,7 @@ mobile/*.iml
 # Backups y dumps
 *.sql
 *.dump
+
+# Binarios APK
+*.apk
+backend/static/

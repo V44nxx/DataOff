@@ -208,6 +208,15 @@ def _process_person(
             existing_person.is_deleted = True
             existing_person.deleted_at = synced_at
             existing_person.updated_at = synced_at
+            # Soft delete de contactos asociados en PostgreSQL
+            db.query(Contact).filter(
+                Contact.person_id == existing_person.id,
+                Contact.is_deleted == False,
+            ).update({
+                Contact.is_deleted: True,
+                Contact.updated_at: synced_at,
+            }, synchronize_session='fetch')
+            db.flush()
             return SyncRecordResult(
                 entity_type="person",
                 entity_id=str(uuid_id),

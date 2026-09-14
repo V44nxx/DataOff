@@ -245,7 +245,7 @@ class PersonLocalDataSource implements PersonRepository {
           label: label,
           isPrimary: isPrimary,
           personId: person.id,
-          capturedAt: c.capturedAt ?? capTime,
+          capturedAt: capTime,
         );
 
         await db.insert(
@@ -264,11 +264,35 @@ class PersonLocalDataSource implements PersonRepository {
   Future<void> deletePerson(String id) async {
     final db = await _db;
     final now = DateTime.now().toUtc().toIso8601String();
+
+    // 1. Soft-delete de la persona localmente
     await db.update(
       'persons',
       {'is_deleted': 1, 'updated_at': now, 'sync_status': 'pending'},
       where: 'id = ?',
       whereArgs: [id],
+    );
+
+    // 2. Soft-delete de sus contactos locales
+    await db.update(
+      'contacts',
+      {'is_deleted': 1, 'updated_at': now},
+      where: 'person_id = ?',
+      whereArgs: [id],
+    );
+
+    // 3. Encolar operación de eliminación para sincronización
+    await db.insert(
+      'sync_queue',
+      {
+        'entity_type': 'person',
+        'entity_id': id,
+        'operation': 'delete',
+        'payload': '',
+        'created_at': now,
+        'status': 'pending',
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
@@ -278,9 +302,9 @@ class PersonLocalDataSource implements PersonRepository {
     final maps = await db.rawQuery('''
       SELECT DISTINCT p.* FROM persons p
       LEFT JOIN contacts c ON c.person_id = p.id
-      WHERE p.is_deleted = 0 AND (
+      WHERE (
         p.sync_status != 'synced' OR
-        c.synced_at IS NULL
+        (p.is_deleted = 0 AND c.synced_at IS NULL)
       )
       ORDER BY p.captured_at ASC
     ''');
@@ -298,9 +322,9 @@ class PersonLocalDataSource implements PersonRepository {
     final result = await db.rawQuery('''
       SELECT COUNT(DISTINCT p.id) as count FROM persons p
       LEFT JOIN contacts c ON c.person_id = p.id
-      WHERE p.is_deleted = 0 AND (
+      WHERE (
         p.sync_status != 'synced' OR
-        c.synced_at IS NULL
+        (p.is_deleted = 0 AND c.synced_at IS NULL)
       )
     ''');
     return (result.first['count'] as int?) ?? 0;
