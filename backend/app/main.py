@@ -260,6 +260,24 @@ async def download_apk():
     )
 
 
+@app.get(
+    "/api/v1/apk-info",
+    tags=["Descargas"],
+    summary="Diagnóstico de APK en el servidor",
+)
+async def get_apk_info():
+    apk_path = STATIC_DIR / "DataOff.apk"
+    alt_path = BASE_DIR.parent / "frontend" / "public" / "DataOff.apk"
+    return {
+        "static_dir": str(STATIC_DIR),
+        "static_exists": apk_path.is_file(),
+        "static_size": apk_path.stat().st_size if apk_path.is_file() else None,
+        "alt_exists": alt_path.is_file(),
+        "alt_size": alt_path.stat().st_size if alt_path.is_file() else None,
+        "version": "1.0.1+2",
+    }
+
+
 # ── React Router / Fallback ────────────────────────────────────
 
 @app.get(

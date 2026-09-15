@@ -29,7 +29,8 @@ COPY requirements.txt .
 RUN pip install --upgrade pip setuptools wheel \
     && pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código del backend
+# Copiar el código del backend (forzar reconstrucción sin caché v1.0.1+2)
+ARG CACHEBUST=20260914_1
 COPY --chown=appuser:appgroup . .
 
 # Permisos de ejecución para el script de inicio
