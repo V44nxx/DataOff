@@ -96,7 +96,7 @@ export default function DashboardPage() {
           <Smartphone className="w-4 h-4 text-indigo-100" />
           <span>Descargar APK Móvil</span>
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium ml-1">
-            v1.0.0
+            v1.0.1
           </span>
           <Download className="w-4 h-4 ml-0.5 opacity-80" />
         </a>
@@ -128,7 +128,7 @@ export default function DashboardPage() {
                 Offline-First
               </span>
               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                v1.0.0
+                v1.0.1
               </span>
             </div>
             <p className="text-xs sm:text-sm max-w-xl leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
