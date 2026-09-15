@@ -64,6 +64,16 @@ class ApiClient {
 
   String get baseUrl => _dio.options.baseUrl;
 
+  /// Construye una URL absoluta infalible asegurando el prefijo /api/v1
+  String apiUrl(String path) {
+    final cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    final base = _dio.options.baseUrl.replaceAll(RegExp(r'/+$'), '');
+    if (base.endsWith('/api/v1')) {
+      return '$base/$cleanPath';
+    }
+    return '$base/api/v1/$cleanPath';
+  }
+
   static ApiClient get instance {
     _instance ??= ApiClient._();
     return _instance!;
@@ -121,7 +131,7 @@ class _AuthInterceptor extends Interceptor {
 
         // Solicitar nuevo access token
         final response = await Dio().post(
-          '${_dio.options.baseUrl}/auth/refresh',
+          ApiClient.instance.apiUrl('auth/refresh'),
           data: {'refresh_token': refreshToken},
         );
 

@@ -30,7 +30,7 @@ export default function HomePage() {
             Bienvenido, <span className="text-gradient">{user?.full_name?.split(' ')[0]}</span>
           </h1>
           <p className="text-sm sm:text-lg mb-6 sm:mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-            Sistema Offline-First Empresarial · DataOff v1.0.1
+            Sistema Offline-First Empresarial · DataOff v1.0.2
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button onClick={() => navigate('/dashboard')} className="btn btn-primary btn-lg gap-2 w-full sm:w-auto justify-center">
@@ -38,13 +38,13 @@ export default function HomePage() {
               <ArrowRight className="w-5 h-5" />
             </button>
             <a
-              href="/DataOff-v1.0.1.apk"
-              download="DataOff-v1.0.1.apk"
+              href="/DataOff-v1.0.2.apk"
+              download="DataOff-v1.0.2.apk"
               id="btn-download-apk-home"
               className="btn btn-secondary btn-lg gap-2 w-full sm:w-auto justify-center"
             >
               <Smartphone className="w-5 h-5 text-indigo-400" />
-              <span>Descargar APK v1.0.1</span>
+              <span>Descargar APK v1.0.2</span>
               <Download className="w-4 h-4 opacity-75" />
             </a>
           </div>

@@ -29,10 +29,10 @@ mobile/*.iml
 *.sql
 *.dump
 
-# Binarios APK (se permite solo el paquete de distribucion v1.0.1)
+# Binarios APK (se permite el paquete de distribucion v1.0.2)
 *.apk
-!frontend/public/DataOff-v1.0.1.apk
-!backend/static/DataOff-v1.0.1.apk
+!frontend/public/DataOff-v1.0.2.apk
+!backend/static/DataOff-v1.0.2.apk
 backend/static/*
-!backend/static/DataOff-v1.0.1.apk
+!backend/static/DataOff-v1.0.2.apk
 

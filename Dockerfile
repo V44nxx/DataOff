@@ -20,8 +20,8 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci --frozen-lockfile
 
-# Copiar código fuente y compilar (cache bust v1.0.2)
-ARG CACHEBUST=20260915_4
+# Copiar código fuente y compilar (cache bust v1.0.2 final)
+ARG CACHEBUST=20260915_5
 COPY frontend/ .
 RUN npm run build
 # El resultado queda en /frontend/dist

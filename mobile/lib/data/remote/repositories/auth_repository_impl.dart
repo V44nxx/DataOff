@@ -30,11 +30,14 @@ class AuthRepositoryImpl implements AuthRepository {
     final cleanPassword = password.trim();
 
     try {
-      final response = await _dio.post('/auth/login', data: {
-        'email': cleanEmail,
-        'password': cleanPassword,
-        'device_id': deviceId,
-      });
+      final response = await _dio.post(
+        ApiClient.instance.apiUrl('auth/login'),
+        data: {
+          'email': cleanEmail,
+          'password': cleanPassword,
+          'device_id': deviceId,
+        },
+      );
 
       final data = response.data;
       final userMap = data['user'] as Map<String, dynamic>;

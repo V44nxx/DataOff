@@ -149,7 +149,16 @@ async def global_exception_handler(
 
 # ── Routers de la API ──────────────────────────────────────────
 
+# Rutas estándar con prefijo /api/v1 (ej: /api/v1/sync/push, /api/v1/auth/login)
 app.include_router(api_router)
+
+# Rutas espejo sin prefijo /api/v1 para compatibilidad universal con clientes móviles (Dio, Fetch, etc.)
+from app.api import auth, sync, persons, users, dashboard
+app.include_router(auth.router)
+app.include_router(sync.router)
+app.include_router(persons.router)
+app.include_router(users.router)
+app.include_router(dashboard.router)
 
 
 # ── Archivos estáticos del frontend ────────────────────────────
@@ -205,7 +214,14 @@ async def root():
     """
     index_path = STATIC_DIR / "index.html"
     if index_path.is_file():
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     return {
         "app": settings.APP_NAME,
@@ -217,32 +233,42 @@ async def root():
 
 # ── Descarga de APK para Android ───────────────────────────────
 
-@app.get(
+@app.api_route(
+    "/DataOff-v1.0.2.apk",
+    methods=["GET", "HEAD"],
+    include_in_schema=False,
+)
+@app.api_route(
     "/DataOff-v1.0.1.apk",
+    methods=["GET", "HEAD"],
     include_in_schema=False,
 )
-@app.get(
+@app.api_route(
     "/DataOff.apk",
+    methods=["GET", "HEAD"],
     include_in_schema=False,
 )
-@app.get(
+@app.api_route(
     "/download/apk",
+    methods=["GET", "HEAD"],
     include_in_schema=False,
 )
-@app.get(
+@app.api_route(
     "/api/v1/download/apk",
+    methods=["GET", "HEAD"],
     tags=["Descargas"],
     summary="Descargar APK de Android",
 )
 async def download_apk():
     """
-    Descarga directa del paquete instalador de Android (APK v1.0.1).
+    Descarga directa del paquete instalador de Android (APK v1.0.2).
     Configura el MIME type oficial `application/vnd.android.package-archive`
     y cabeceras `Content-Disposition: attachment` para evitar que los navegadores
     móviles (Google Chrome, Samsung Internet) guarden el archivo como .zip.
     """
-    # Buscar primero la versión 1.0.1 explícita
     candidates = [
+        STATIC_DIR / "DataOff-v1.0.2.apk",
+        BASE_DIR.parent / "frontend" / "public" / "DataOff-v1.0.2.apk",
         STATIC_DIR / "DataOff-v1.0.1.apk",
         BASE_DIR.parent / "frontend" / "public" / "DataOff-v1.0.1.apk",
         STATIC_DIR / "DataOff.apk",
@@ -261,13 +287,15 @@ async def download_apk():
             content={"detail": "Archivo APK no encontrado en el servidor."},
         )
 
+    filename = apk_path.name
+
     return FileResponse(
         path=apk_path,
-        filename="DataOff-v1.0.1.apk",
+        filename=filename,
         media_type="application/vnd.android.package-archive",
         headers={
             "Content-Type": "application/vnd.android.package-archive",
-            "Content-Disposition": 'attachment; filename="DataOff-v1.0.1.apk"',
+            "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
             "Expires": "0",
@@ -282,10 +310,12 @@ async def download_apk():
 )
 async def get_apk_info():
     apk_candidates = [
+        STATIC_DIR / "DataOff-v1.0.2.apk",
         STATIC_DIR / "DataOff-v1.0.1.apk",
         STATIC_DIR / "DataOff.apk",
     ]
     alt_candidates = [
+        BASE_DIR.parent / "frontend" / "public" / "DataOff-v1.0.2.apk",
         BASE_DIR.parent / "frontend" / "public" / "DataOff-v1.0.1.apk",
         BASE_DIR.parent / "frontend" / "public" / "DataOff.apk",
     ]
@@ -297,7 +327,7 @@ async def get_apk_info():
         "static_size": apk_path.stat().st_size if apk_path.is_file() else None,
         "alt_exists": alt_path.is_file(),
         "alt_size": alt_path.stat().st_size if alt_path.is_file() else None,
-        "version": "1.0.1",
+        "version": "1.0.2",
     }
 
 
@@ -324,13 +354,22 @@ async def serve_frontend(full_path: str):
                     "Content-Type": "application/vnd.android.package-archive",
                     "Content-Disposition": f'attachment; filename="{file_path.name}"',
                     "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Pragma": "no-cache",
+                    "Expires": "0",
                 },
             )
         return FileResponse(file_path)
 
     index_path = STATIC_DIR / "index.html"
     if index_path.is_file():
-        return FileResponse(index_path)
+        return FileResponse(
+            index_path,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,

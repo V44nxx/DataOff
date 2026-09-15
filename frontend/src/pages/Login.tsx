@@ -141,18 +141,18 @@ export default function LoginPage() {
         <div className="flex flex-col items-center justify-center gap-3 mt-6 text-xs text-center"
           style={{ color: 'var(--color-text-muted)' }}>
           <a
-            href="/DataOff-v1.0.1.apk"
-            download="DataOff-v1.0.1.apk"
+            href="/DataOff-v1.0.2.apk"
+            download="DataOff-v1.0.2.apk"
             id="btn-download-apk-login"
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors border border-indigo-500/20"
           >
             <Smartphone className="w-4 h-4 text-indigo-400" />
-            <span>Descargar APK Android v1.0.1 (52 MB)</span>
+            <span>Descargar APK Android v1.0.2 (51 MB)</span>
             <Download className="w-3.5 h-3.5 opacity-80" />
           </a>
           <div className="flex items-center gap-2">
             <div className="glow-dot" style={{ width: 6, height: 6 }} />
-            Sistema funciona en modo offline · Versión 1.0.1
+            Sistema funciona en modo offline · Versión 1.0.2
           </div>
         </div>
       </div>

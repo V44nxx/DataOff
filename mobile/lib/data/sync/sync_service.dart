@@ -101,11 +101,14 @@ class SyncService {
       final cachedEmail = await _storage.read(key: 'cached_login_email') ?? 'admin@dataoff.com';
       final cachedPass = await _storage.read(key: 'cached_login_password') ?? 'Admin@DataOff2024';
       try {
-        final loginRes = await _dio.post('/auth/login', data: {
-          'email': cachedEmail,
-          'password': cachedPass,
-          'device_id': deviceId,
-        });
+        final loginRes = await _dio.post(
+          ApiClient.instance.apiUrl('auth/login'),
+          data: {
+            'email': cachedEmail,
+            'password': cachedPass,
+            'device_id': deviceId,
+          },
+        );
         final data = loginRes.data;
         await _storage.write(key: AppConstants.keyAccessToken, value: data['access_token']);
         await _storage.write(key: AppConstants.keyRefreshToken, value: data['refresh_token']);
@@ -167,7 +170,7 @@ class SyncService {
     for (final batch in batches) {
       try {
         final response = await _dio.post(
-          '/sync/push',
+          ApiClient.instance.apiUrl('sync/push'),
           data: {
             'device_id': deviceId,
             'records': batch,
