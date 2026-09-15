@@ -8,12 +8,13 @@ from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, field_validator
 
-# Desempaquetar variables si fueron pegadas en bloque en una sola clave (ej. ENVIRONMENT en Dokploy)
+# Desempaquetar variables si fueron pegadas en bloque en una sola clave (ej. ENVIRONMENT en Dokploy con \n literales o reales)
 for _env_key in list(os.environ.keys()):
     _val = os.environ[_env_key]
-    if "\n" in _val and "=" in _val:
+    if ("\n" in _val or "\\n" in _val) and "=" in _val:
+        _norm = _val.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\r\n", "\n")
         _first_line = ""
-        for _line in _val.splitlines():
+        for _line in _norm.splitlines():
             _line = _line.strip()
             if "=" in _line:
                 _k, _v = _line.split("=", 1)
