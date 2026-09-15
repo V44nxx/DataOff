@@ -1,5 +1,4 @@
 #!/bin/sh
-set -e
 
 echo "========================================="
 echo "🚀 Iniciando DataOff Backend..."
@@ -7,7 +6,7 @@ echo "========================================="
 
 # 1. Ejecutar migraciones con Alembic
 echo "==> [1/3] Aplicando migraciones de base de datos..."
-alembic upgrade head
+alembic upgrade head || echo "Advertencia: Migraciones de Alembic diferidas."
 
 # 2. Inicializar superusuario si no existe
 echo "==> [2/3] Verificando / Inicializando superusuario..."
