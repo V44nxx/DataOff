@@ -177,7 +177,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: urlController,
                 decoration: const InputDecoration(
                   labelText: 'URL de la API',
-                  hintText: 'https://fastapi.dataoff.v44nxx.online/api/v1',
+                  hintText: 'https://dataoff.v44nxx.online/api/v1',
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),

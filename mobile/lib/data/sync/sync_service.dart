@@ -65,15 +65,20 @@ class SyncService {
 
   // ── Verificar conectividad ────────────────────────────────
   Future<bool> get isOnline async {
-    final result = await _connectivity.checkConnectivity();
-    return result.any((r) =>
-        r == ConnectivityResult.mobile || r == ConnectivityResult.wifi);
+    try {
+      final results = await _connectivity.checkConnectivity();
+      final hasInterface = results.any((r) => r != ConnectivityResult.none);
+      if (!hasInterface) return false;
+      return true;
+    } catch (_) {
+      // Si el plugin falla en algún dispositivo Android, no bloquear sincronización
+      return true;
+    }
   }
 
   /// Stream de cambios de conectividad
   Stream<bool> get connectivityStream => _connectivity.onConnectivityChanged.map(
-    (results) => results.any((r) =>
-        r == ConnectivityResult.mobile || r == ConnectivityResult.wifi),
+    (results) => results.any((r) => r != ConnectivityResult.none),
   );
 
   // ── Sincronización principal ──────────────────────────────
@@ -82,7 +87,10 @@ class SyncService {
   Future<SyncResult> syncPendingRecords() async {
     if (!await isOnline) {
       _log.w('SyncService: Sin conexión. Sync omitido.');
-      return const SyncResult(status: 'failed', error: 'Sin conexión a internet');
+      return const SyncResult(
+        status: 'failed',
+        error: 'Sin conexión a internet en el dispositivo.',
+      );
     }
 
     final deviceId = await _storage.read(key: AppConstants.keyDeviceId) ?? 'flutter-device';
@@ -104,6 +112,17 @@ class SyncService {
         _log.i('SyncService: Token JWT obtenido online antes de sincronizar');
       } catch (e) {
         _log.w('SyncService: No se pudo refrescar token online antes de sync: $e');
+        if (currentToken == null || currentToken.startsWith('offline-')) {
+          String errMsg = 'No se pudo autenticar con el servidor (${_dio.options.baseUrl}).';
+          if (e is DioException) {
+            if (e.response != null) {
+              errMsg = 'Servidor respondió ${e.response?.statusCode} al autenticar (${_dio.options.baseUrl}).';
+            } else {
+              errMsg = 'Fallo al conectar con ${_dio.options.baseUrl}: ${e.message ?? "Verifica tu conexión y el servidor."}';
+            }
+          }
+          return SyncResult(status: 'failed', error: errMsg);
+        }
       }
     }
 
@@ -143,6 +162,7 @@ class SyncService {
     final batches = _splitIntoBatches(records, AppConstants.syncBatchSize);
     int totalInserted = 0, totalUpdated = 0, totalSkipped = 0,
         totalFailed = 0, totalConflicts = 0;
+    String? lastError;
 
     for (final batch in batches) {
       try {
@@ -171,6 +191,14 @@ class SyncService {
         _log.e('SyncService: Error en lote: ${e.message}');
         totalFailed += batch.length;
 
+        if (e.response != null) {
+          lastError = 'Servidor (${_dio.options.baseUrl}) respondió código ${e.response?.statusCode}: ${e.response?.statusMessage ?? "Error"}';
+        } else if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.sendTimeout || e.type == DioExceptionType.receiveTimeout) {
+          lastError = 'Tiempo de espera agotado al conectar a ${_dio.options.baseUrl}';
+        } else {
+          lastError = 'Error de conexión a ${_dio.options.baseUrl}: ${e.message ?? "Fallo de red"}';
+        }
+
         // Marcar como fallidos para reintentar
         for (final record in batch) {
           final entityId = (record['data'] as Map)['id'] as String?;
@@ -178,6 +206,10 @@ class SyncService {
             await _personDS.markAsFailed(entityId);
           }
         }
+      } catch (e) {
+        _log.e('SyncService: Excepción general: $e');
+        totalFailed += batch.length;
+        lastError = 'Error inesperado: $e';
       }
     }
 
@@ -189,6 +221,7 @@ class SyncService {
       failed: totalFailed,
       conflictsResolved: totalConflicts,
       status: totalFailed == 0 ? 'success' : (totalInserted + totalUpdated > 0 ? 'partial' : 'failed'),
+      error: totalFailed > 0 ? (lastError ?? 'Fallo al sincronizar registros con el servidor.') : null,
     );
 
     _log.i('SyncService completado: ${result.status} '

@@ -3,7 +3,8 @@ class AppConstants {
   AppConstants._();
 
   // ── API ────────────────────────────────────────────────────
-  static const String apiBaseUrl = 'https://fastapi.dataoff.v44nxx.online/api/v1'; // Servidor Cloud (Funciona en cualquier red)
+  static const String apiBaseUrl = 'https://dataoff.v44nxx.online/api/v1'; // Servidor Cloud Unificado
+  static const String legacyApiBaseUrl = 'https://fastapi.dataoff.v44nxx.online/api/v1'; // Legacy
   static const String localApiBaseUrl = 'http://192.168.20.25:8000/api/v1'; // Red local alternativa
   static const String keyServerUrl = 'custom_server_url';
   static const int apiTimeoutSeconds = 30;

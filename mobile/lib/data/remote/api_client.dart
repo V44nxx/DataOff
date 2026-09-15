@@ -43,7 +43,13 @@ class ApiClient {
     try {
       final savedUrl = await _storage.read(key: AppConstants.keyServerUrl);
       if (savedUrl != null && savedUrl.trim().isNotEmpty) {
-        _dio.options.baseUrl = savedUrl.trim();
+        var url = savedUrl.trim();
+        // Si el dispositivo tenía guardado fastapi.dataoff.v44nxx.online, migrar automáticamente
+        if (url.contains('fastapi.dataoff.v44nxx.online')) {
+          url = url.replaceAll('fastapi.dataoff.v44nxx.online', 'dataoff.v44nxx.online');
+          await _storage.write(key: AppConstants.keyServerUrl, value: url);
+        }
+        _dio.options.baseUrl = url;
       }
     } catch (_) {}
   }
@@ -66,7 +72,7 @@ class ApiClient {
   Dio get dio => _dio;
 }
 
-/// Interceptor de autenticación con refresh automático
+/// Interceptor de autenticación con refresh automático y auto-recuperación de dominio
 class _AuthInterceptor extends Interceptor {
   final FlutterSecureStorage _storage;
   final Dio _dio;
@@ -87,6 +93,23 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
+    // 1. Auto-recuperación si falló por apuntar al subdominio antiguo fastapi.dataoff...
+    final currentBase = _dio.options.baseUrl;
+    if (currentBase.contains('fastapi.dataoff.v44nxx.online')) {
+      final fixedBase = currentBase.replaceAll('fastapi.dataoff.v44nxx.online', 'dataoff.v44nxx.online');
+      _dio.options.baseUrl = fixedBase;
+      try {
+        await _storage.write(key: AppConstants.keyServerUrl, value: fixedBase);
+        final newUri = err.requestOptions.uri.toString().replaceAll('fastapi.dataoff.v44nxx.online', 'dataoff.v44nxx.online');
+        final retryOptions = err.requestOptions.copyWith(path: newUri);
+        final retryResponse = await _dio.fetch(retryOptions);
+        return handler.resolve(retryResponse);
+      } catch (_) {
+        // Continuar al manejo normal si el fallback también dio error
+      }
+    }
+
+    // 2. Token expirado (401)
     if (err.response?.statusCode == 401 && !_isRefreshing) {
       _isRefreshing = true;
       try {

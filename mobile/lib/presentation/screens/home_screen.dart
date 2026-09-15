@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/di/injection.dart';
+import '../../data/remote/api_client.dart';
 import '../../data/sync/sync_service.dart';
 import '../../domain/entities/person.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -148,6 +149,95 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() => _isSyncing = false);
       }
     }
+  }
+
+  Future<void> _showServerConfigDialog() async {
+    final currentUrl = ApiClient.instance.baseUrl;
+    final controller = TextEditingController(text: currentUrl);
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.dns_rounded, color: Colors.indigoAccent),
+            SizedBox(width: 8),
+            Text('Configurar Servidor', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Selecciona o ingresa la URL de la API de DataOff:',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.cloud_done, size: 18, color: Colors.indigoAccent),
+                label: const Text('Nube Producción (dataoff.v44nxx.online)', style: TextStyle(fontSize: 12)),
+                onPressed: () {
+                  controller.text = AppConstants.apiBaseUrl;
+                },
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.wifi, size: 18, color: Colors.teal),
+                label: const Text('Red Local (192.168.20.25)', style: TextStyle(fontSize: 12)),
+                onPressed: () {
+                  controller.text = AppConstants.localApiBaseUrl;
+                },
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'URL del servidor',
+                  hintText: 'https://dataoff.v44nxx.online/api/v1',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final newUrl = controller.text.trim();
+              if (newUrl.isNotEmpty) {
+                await ApiClient.instance.setBaseUrl(newUrl);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                }
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Servidor actualizado a: $newUrl'),
+                      backgroundColor: Colors.indigoAccent,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _editPerson(Person person) async {
@@ -311,6 +401,11 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Servidor',
+            icon: const Icon(Icons.dns_outlined),
+            onPressed: _showServerConfigDialog,
+          ),
           IconButton(
             tooltip: 'Sincronizar ahora',
             icon: _isSyncing
