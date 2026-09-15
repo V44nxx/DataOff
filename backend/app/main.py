@@ -127,6 +127,45 @@ app.add_middleware(
 )
 
 
+# ── Middleware para SPA (React Router) ─────────────────────────
+# Garantiza que cualquier recarga o navegación directa desde el navegador
+# (ej. /persons, /dashboard, /users, /sync) devuelva index.html en lugar de
+# colisionar con endpoints o fallar con 404/401.
+@app.middleware("http")
+async def spa_navigation_middleware(request: Request, call_next):
+    if request.method == "GET":
+        path = request.url.path
+        is_system_path = (
+            path.startswith("/api")
+            or path.startswith("/assets")
+            or path.startswith("/download")
+            or path.startswith("/health")
+            or path.startswith("/docs")
+            or path.startswith("/redoc")
+            or path == "/openapi.json"
+        )
+        is_file_asset = path.endswith((
+            ".apk", ".js", ".css", ".ico", ".png", ".jpg", ".jpeg",
+            ".svg", ".json", ".map", ".txt", ".woff", ".woff2", ".webmanifest"
+        ))
+
+        if not is_system_path and not is_file_asset:
+            accept_header = request.headers.get("accept", "")
+            if "text/html" in accept_header or "*/*" in accept_header:
+                index_path = STATIC_DIR / "index.html"
+                if index_path.is_file():
+                    return FileResponse(
+                        index_path,
+                        headers={
+                            "Cache-Control": "no-cache, no-store, must-revalidate",
+                            "Pragma": "no-cache",
+                            "Expires": "0",
+                        },
+                    )
+
+    return await call_next(request)
+
+
 # ── Manejadores de errores globales ────────────────────────────
 
 @app.exception_handler(Exception)
@@ -149,16 +188,14 @@ async def global_exception_handler(
 
 # ── Routers de la API ──────────────────────────────────────────
 
-# Rutas estándar con prefijo /api/v1 (ej: /api/v1/sync/push, /api/v1/auth/login)
+# Rutas estándar con prefijo /api/v1 (ej: /api/v1/sync/push, /api/v1/auth/login, /api/v1/persons)
 app.include_router(api_router)
 
-# Rutas espejo sin prefijo /api/v1 para compatibilidad universal con clientes móviles (Dio, Fetch, etc.)
-from app.api import auth, sync, persons, users, dashboard
+# Rutas espejo de autenticación y sincronización para compatibilidad con versiones previas de APK
+from app.api import auth, sync
 app.include_router(auth.router)
 app.include_router(sync.router)
-app.include_router(persons.router)
-app.include_router(users.router)
-app.include_router(dashboard.router)
+
 
 
 # ── Archivos estáticos del frontend ────────────────────────────
