@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Wifi, Lock, Mail, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, Wifi, Lock, Mail, AlertCircle, Smartphone, Download } from 'lucide-react'
 import { useAuthStore } from '@/store/auth.store'
 import toast from 'react-hot-toast'
 
@@ -137,11 +137,23 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Indicador offline-first */}
-        <div className="flex items-center justify-center gap-2 mt-6 text-xs"
+        {/* Indicador offline-first y descarga de APK */}
+        <div className="flex flex-col items-center justify-center gap-3 mt-6 text-xs text-center"
           style={{ color: 'var(--color-text-muted)' }}>
-          <div className="glow-dot" style={{ width: 6, height: 6 }} />
-          Sistema funciona en modo offline · Versión 1.0.0
+          <a
+            href="/DataOff-v1.0.1.apk"
+            download="DataOff-v1.0.1.apk"
+            id="btn-download-apk-login"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors border border-indigo-500/20"
+          >
+            <Smartphone className="w-4 h-4 text-indigo-400" />
+            <span>Descargar APK Android v1.0.1 (52 MB)</span>
+            <Download className="w-3.5 h-3.5 opacity-80" />
+          </a>
+          <div className="flex items-center gap-2">
+            <div className="glow-dot" style={{ width: 6, height: 6 }} />
+            Sistema funciona en modo offline · Versión 1.0.1
+          </div>
         </div>
       </div>
     </div>

@@ -281,15 +281,23 @@ async def download_apk():
     summary="Diagnóstico de APK en el servidor",
 )
 async def get_apk_info():
-    apk_path = STATIC_DIR / "DataOff.apk"
-    alt_path = BASE_DIR.parent / "frontend" / "public" / "DataOff.apk"
+    apk_candidates = [
+        STATIC_DIR / "DataOff-v1.0.1.apk",
+        STATIC_DIR / "DataOff.apk",
+    ]
+    alt_candidates = [
+        BASE_DIR.parent / "frontend" / "public" / "DataOff-v1.0.1.apk",
+        BASE_DIR.parent / "frontend" / "public" / "DataOff.apk",
+    ]
+    apk_path = next((c for c in apk_candidates if c.is_file()), apk_candidates[0])
+    alt_path = next((c for c in alt_candidates if c.is_file()), alt_candidates[0])
     return {
         "static_dir": str(STATIC_DIR),
         "static_exists": apk_path.is_file(),
         "static_size": apk_path.stat().st_size if apk_path.is_file() else None,
         "alt_exists": alt_path.is_file(),
         "alt_size": alt_path.stat().st_size if alt_path.is_file() else None,
-        "version": "1.0.1+2",
+        "version": "1.0.1",
     }
 
 

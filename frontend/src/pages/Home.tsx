@@ -1,4 +1,4 @@
-import { Wifi, Users, RefreshCw, BarChart3, ArrowRight } from 'lucide-react'
+import { Wifi, Users, RefreshCw, BarChart3, ArrowRight, Smartphone, Download } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 
@@ -30,12 +30,24 @@ export default function HomePage() {
             Bienvenido, <span className="text-gradient">{user?.full_name?.split(' ')[0]}</span>
           </h1>
           <p className="text-sm sm:text-lg mb-6 sm:mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-            Sistema Offline-First Empresarial · DataOff v1.0.0
+            Sistema Offline-First Empresarial · DataOff v1.0.1
           </p>
-          <button onClick={() => navigate('/dashboard')} className="btn btn-primary btn-lg gap-2 w-full sm:w-auto justify-center">
-            Ir al Dashboard
-            <ArrowRight className="w-5 h-5" />
-          </button>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button onClick={() => navigate('/dashboard')} className="btn btn-primary btn-lg gap-2 w-full sm:w-auto justify-center">
+              Ir al Dashboard
+              <ArrowRight className="w-5 h-5" />
+            </button>
+            <a
+              href="/DataOff-v1.0.1.apk"
+              download="DataOff-v1.0.1.apk"
+              id="btn-download-apk-home"
+              className="btn btn-secondary btn-lg gap-2 w-full sm:w-auto justify-center"
+            >
+              <Smartphone className="w-5 h-5 text-indigo-400" />
+              <span>Descargar APK v1.0.1</span>
+              <Download className="w-4 h-4 opacity-75" />
+            </a>
+          </div>
         </div>
 
         {/* Features */}
