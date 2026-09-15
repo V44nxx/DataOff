@@ -233,6 +233,13 @@ async def download_apk():
     móviles (Google Chrome, Samsung Internet) guarden el archivo como .zip.
     """
     apk_path = STATIC_DIR / "DataOff.apk"
+    alt_path = BASE_DIR.parent / "frontend" / "public" / "DataOff.apk"
+
+    # Priorizar la versión más reciente entre static y frontend/public
+    if alt_path.is_file():
+        if not apk_path.is_file() or alt_path.stat().st_mtime > apk_path.stat().st_mtime:
+            apk_path = alt_path
+
     if not apk_path.is_file():
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
