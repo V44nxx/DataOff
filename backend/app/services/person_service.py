@@ -180,6 +180,144 @@ def _apply_contacts_escalera(
     return to_keep
 
 
+def _reconcile_person_contacts(
+    db: Session,
+    person: Person,
+    incoming_contacts: list[Any],
+    now: datetime,
+    sync_source: SyncSource = SyncSource.WEB,
+) -> list[Contact]:
+    """
+    Sincroniza y reconcilia los contactos de una persona tras una edición explícita.
+    - Los contactos omitidos en incoming_contacts son marcados como is_deleted = True (soft delete).
+    - Los contactos existentes que se mantienen son actualizados en su lugar (contact_value, contact_type, label, is_primary).
+    - Los contactos nuevos son creados.
+    - Se respeta la regla de escalera: máximo 3 contactos activos, ordenados según la lista recibida.
+    """
+    # 1. Obtener contactos activos actuales de la persona en DB
+    active_contacts = (
+        db.query(Contact)
+        .filter(
+            Contact.person_id == person.id,
+            Contact.is_deleted == False,
+        )
+        .all()
+    )
+
+    # Mapeos de búsqueda para los contactos activos existentes
+    db_by_id: dict[str, Contact] = {str(c.id): c for c in active_contacts}
+    db_by_val: dict[str, Contact] = {
+        c.contact_value.strip().lower(): c for c in active_contacts if c.contact_value
+    }
+
+    matched_db_ids: set[UUID] = set()
+    result_contacts: list[Contact] = []
+    incoming_list = list(incoming_contacts or [])[:3]
+
+    # Timestamp base para contactos nuevos
+    existing_timestamps = [c.captured_at for c in active_contacts if c.captured_at]
+    max_existing_dt = max(existing_timestamps, default=now)
+    if max_existing_dt.tzinfo is None:
+        max_existing_dt = max_existing_dt.replace(tzinfo=timezone.utc)
+    now_utc = now if now.tzinfo is not None else now.replace(tzinfo=timezone.utc)
+    base_ts = max(now_utc, max_existing_dt)
+
+    for idx, cd in enumerate(incoming_list):
+        val = getattr(cd, "contact_value", None)
+        if val is None and isinstance(cd, dict):
+            val = cd.get("contact_value")
+        val = str(val or "").strip()
+        if not val:
+            continue
+
+        ctype = getattr(cd, "contact_type", None)
+        if ctype is None and isinstance(cd, dict):
+            ctype = cd.get("contact_type")
+        ctype = _normalize_contact_type(ctype)
+
+        lbl = getattr(cd, "label", None)
+        if lbl is None and isinstance(cd, dict):
+            lbl = cd.get("label")
+        lbl_str = str(lbl).strip() if lbl else ""
+        if not lbl_str or lbl_str.lower().startswith("contacto"):
+            assigned_label = f"Contacto {idx + 1}"
+        else:
+            assigned_label = lbl_str
+
+        cid = getattr(cd, "id", None)
+        if cid is None and isinstance(cd, dict):
+            cid = cd.get("id")
+        cid_str = str(cid) if cid else None
+
+        # Intentar emparejar por ID
+        existing_c = db_by_id.get(cid_str) if cid_str else None
+
+        # Si no emparejó por ID, intentar por valor exacto entre los no reclamados
+        if not existing_c and val.lower() in db_by_val:
+            candidate = db_by_val[val.lower()]
+            if candidate.id not in matched_db_ids:
+                existing_c = candidate
+
+        if existing_c:
+            # Actualizar contacto existente
+            existing_c.contact_type = ctype
+            existing_c.contact_value = val
+            existing_c.label = assigned_label
+            existing_c.is_primary = (idx == 0)
+            existing_c.updated_at = now
+            existing_c.synced_at = now
+            matched_db_ids.add(existing_c.id)
+            result_contacts.append(existing_c)
+        else:
+            # Crear contacto nuevo
+            cap_at = getattr(cd, "captured_at", None)
+            if cap_at is None and isinstance(cd, dict):
+                cap_at = cd.get("captured_at")
+
+            assigned_cap_at = base_ts + timedelta(seconds=(len(incoming_list) - idx))
+            if cap_at:
+                if isinstance(cap_at, str):
+                    try:
+                        pdt = datetime.fromisoformat(cap_at.replace("Z", "+00:00"))
+                        if pdt.tzinfo is None:
+                            pdt = pdt.replace(tzinfo=timezone.utc)
+                        assigned_cap_at = pdt
+                    except ValueError:
+                        pass
+                elif isinstance(cap_at, datetime):
+                    assigned_cap_at = cap_at if cap_at.tzinfo is not None else cap_at.replace(tzinfo=timezone.utc)
+
+            new_cid = UUID(cid_str) if cid_str else uuid4()
+            new_c = Contact(
+                id=new_cid,
+                person_id=person.id,
+                contact_type=ctype,
+                contact_value=val,
+                label=assigned_label,
+                is_primary=(idx == 0),
+                captured_at=assigned_cap_at,
+                synced_at=now,
+                sync_source=sync_source,
+                is_deleted=False,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(new_c)
+            matched_db_ids.add(new_c.id)
+            result_contacts.append(new_c)
+
+    # Soft delete de los contactos activos que no fueron incluidos en incoming_contacts
+    for c in active_contacts:
+        if c.id not in matched_db_ids:
+            c.is_deleted = True
+            c.deleted_at = now
+            c.updated_at = now
+
+    db.flush()
+    db.expire(person, ["contacts"])
+    return result_contacts
+
+
 class PersonService:
 
     def create_person(
@@ -402,7 +540,7 @@ class PersonService:
                 setattr(person, field, value)
 
         if data.contacts is not None:
-            _apply_contacts_escalera(
+            _reconcile_person_contacts(
                 db=db,
                 person=person,
                 incoming_contacts=data.contacts,
@@ -412,6 +550,7 @@ class PersonService:
 
         person.updated_at = datetime.now(timezone.utc)
         db.flush()
+        db.expire(person)
         return person
 
     def delete_person(
@@ -457,7 +596,68 @@ class PersonService:
         )
         person.updated_at = now
         db.flush()
+        db.expire(person)
         return kept[0] if kept else None
+
+    def delete_contact(
+        self,
+        db: Session,
+        person_id: UUID,
+        contact_id: UUID,
+        current_user: User,
+    ) -> bool:
+        """Soft delete de un contacto individual de una persona."""
+        from app.core.enums import UserRole
+
+        person = self.get_person(db, person_id)
+
+        if current_user.role == UserRole.ASESOR and person.user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No tienes permiso para editar esta persona",
+            )
+
+        contact = (
+            db.query(Contact)
+            .filter(
+                Contact.id == contact_id,
+                Contact.person_id == person_id,
+                Contact.is_deleted == False,
+            )
+            .first()
+        )
+        if not contact:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Contacto no encontrado",
+            )
+
+        now = datetime.now(timezone.utc)
+        contact.is_deleted = True
+        contact.deleted_at = now
+        contact.updated_at = now
+
+        # Reordenar y re-etiquetar los contactos activos restantes
+        remaining = (
+            db.query(Contact)
+            .filter(
+                Contact.person_id == person_id,
+                Contact.is_deleted == False,
+                Contact.id != contact_id,
+            )
+            .order_by(Contact.captured_at.desc())
+            .limit(3)
+            .all()
+        )
+        for idx, c in enumerate(remaining):
+            c.label = f"Contacto {idx + 1}"
+            c.is_primary = (idx == 0)
+            c.updated_at = now
+
+        person.updated_at = now
+        db.flush()
+        db.expire(person)
+        return True
 
 
 person_service = PersonService()

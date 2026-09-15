@@ -23,17 +23,17 @@ from app.core.enums import (
 # ════════════════════════════════════════════════════════════════
 
 class ContactBase(BaseModel):
+    id: Optional[UUID] = None
     contact_type: ContactType
     contact_value: str = Field(..., min_length=1, max_length=255)
     is_primary: bool = False
     label: Optional[str] = Field(None, max_length=100)
+    captured_at: Optional[datetime] = None
 
 
 class ContactCreate(ContactBase):
     """Para crear un contacto desde la web."""
-    id: Optional[UUID] = None          # Puede venir de la APK
     person_id: UUID
-    captured_at: Optional[datetime] = None   # Si viene de la APK, se respeta
     sync_source: SyncSource = SyncSource.WEB
 
 

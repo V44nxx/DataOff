@@ -56,10 +56,12 @@ export interface Contact {
 }
 
 export interface ContactCreate {
+  id?: string
   contact_type: ContactType
   contact_value: string
   is_primary?: boolean
   label?: string
+  captured_at?: string
 }
 
 // ── Personas ───────────────────────────────────────────────────

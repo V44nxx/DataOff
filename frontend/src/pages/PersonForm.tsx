@@ -133,7 +133,11 @@ export default function PersonFormPage() {
       ...formData,
       first_name: fName,
       last_name: lName,
-      contacts: activeContacts
+      contacts: activeContacts.map((c, idx) => ({
+        ...c,
+        is_primary: idx === 0,
+        label: c.label || `Contacto ${idx + 1}`
+      }))
     }
 
     setLoading(true)
@@ -223,11 +227,14 @@ export default function PersonFormPage() {
       ...prev,
       contacts: [
         { contact_type: 'phone', contact_value: '', is_primary: true, label: 'Contacto 1' },
-        ...(prev.contacts || []).map((c, i) => ({
-          ...c,
-          is_primary: false,
-          label: `Contacto ${i + 2}`
-        }))
+        ...(prev.contacts || []).map((c, i) => {
+          const isDefaultLabel = !c.label || /^Contacto\s+\d+.*$/i.test(c.label.trim())
+          return {
+            ...c,
+            is_primary: false,
+            label: isDefaultLabel ? `Contacto ${i + 2}` : c.label
+          }
+        })
       ]
     }))
   }
@@ -236,7 +243,17 @@ export default function PersonFormPage() {
     setFormData(prev => {
       const newContacts = [...(prev.contacts || [])]
       newContacts.splice(index, 1)
-      return { ...prev, contacts: newContacts }
+      return {
+        ...prev,
+        contacts: newContacts.map((c, i) => {
+          const isDefaultLabel = !c.label || /^Contacto\s+\d+.*$/i.test(c.label.trim())
+          return {
+            ...c,
+            is_primary: i === 0,
+            label: isDefaultLabel ? `Contacto ${i + 1}` : c.label
+          }
+        })
+      }
     })
   }
 
@@ -385,7 +402,7 @@ export default function PersonFormPage() {
             {formData.contacts?.map((contact, index) => {
               const isPhoneType = contact.contact_type === 'phone' || contact.contact_type === 'whatsapp'
               return (
-                <div key={index} className="p-3 sm:p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 flex flex-col gap-3">
+                <div key={contact.id || `contact-${index}`} className="p-3 sm:p-4 rounded-xl bg-slate-800/40 border border-slate-700/50 flex flex-col gap-3">
                   <div className="flex items-center justify-between border-b border-slate-700/40 pb-2">
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
                       {index === 0 ? 'Contacto 1 (Puesto 1 - Principal / Más reciente)' : `Contacto ${index + 1} (Puesto ${index + 1})`}

@@ -129,3 +129,21 @@ def add_contact(
     """Agrega un contacto a una persona existente."""
     data.person_id = person_id  # Asegurar consistencia
     return person_service.add_contact(db=db, data=data, current_user=current_user)
+
+
+@router.delete(
+    "/{person_id}/contacts/{contact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Eliminar contacto",
+)
+def delete_contact(
+    person_id: UUID,
+    contact_id: UUID,
+    current_user: AsesorUser,
+    db: Session = Depends(get_db),
+):
+    """Soft delete de un contacto específico de una persona."""
+    person_service.delete_contact(
+        db=db, person_id=person_id, contact_id=contact_id, current_user=current_user
+    )
+
