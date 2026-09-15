@@ -213,6 +213,10 @@ async def root():
 # ── Descarga de APK para Android ───────────────────────────────
 
 @app.get(
+    "/DataOff-v1.0.1.apk",
+    include_in_schema=False,
+)
+@app.get(
     "/DataOff.apk",
     include_in_schema=False,
 )
@@ -227,20 +231,26 @@ async def root():
 )
 async def download_apk():
     """
-    Descarga directa del paquete instalador de Android (APK).
+    Descarga directa del paquete instalador de Android (APK v1.0.1).
     Configura el MIME type oficial `application/vnd.android.package-archive`
     y cabeceras `Content-Disposition: attachment` para evitar que los navegadores
     móviles (Google Chrome, Samsung Internet) guarden el archivo como .zip.
     """
-    apk_path = STATIC_DIR / "DataOff.apk"
-    alt_path = BASE_DIR.parent / "frontend" / "public" / "DataOff.apk"
+    # Buscar primero la versión 1.0.1 explícita
+    candidates = [
+        STATIC_DIR / "DataOff-v1.0.1.apk",
+        BASE_DIR.parent / "frontend" / "public" / "DataOff-v1.0.1.apk",
+        STATIC_DIR / "DataOff.apk",
+        BASE_DIR.parent / "frontend" / "public" / "DataOff.apk",
+    ]
 
-    # Priorizar la versión más reciente entre static y frontend/public
-    if alt_path.is_file():
-        if not apk_path.is_file() or alt_path.stat().st_mtime > apk_path.stat().st_mtime:
-            apk_path = alt_path
+    apk_path = None
+    for candidate in candidates:
+        if candidate.is_file():
+            apk_path = candidate
+            break
 
-    if not apk_path.is_file():
+    if not apk_path:
         return JSONResponse(
             status_code=status.HTTP_404_NOT_FOUND,
             content={"detail": "Archivo APK no encontrado en el servidor."},
@@ -248,11 +258,11 @@ async def download_apk():
 
     return FileResponse(
         path=apk_path,
-        filename="DataOff.apk",
+        filename="DataOff-v1.0.1.apk",
         media_type="application/vnd.android.package-archive",
         headers={
             "Content-Type": "application/vnd.android.package-archive",
-            "Content-Disposition": 'attachment; filename="DataOff.apk"',
+            "Content-Disposition": 'attachment; filename="DataOff-v1.0.1.apk"',
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
             "Expires": "0",
