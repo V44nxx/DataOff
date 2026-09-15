@@ -48,17 +48,22 @@ async def lifespan(app: FastAPI):
         f"   Entorno: {settings.ENVIRONMENT}"
     )
 
-    # Inicializar DB
-    # Crear superusuario si no existe solamente en development/staging
-    if settings.ENVIRONMENT in ("development", "staging"):
+    # Inicializar DB y superusuario si la base de datos está disponible
+    try:
+        from app.db.base_model import Base
+        from app.db.session import engine, SessionLocal
+        import app.models  # Asegura el registro de todos los modelos en Base.metadata
+        Base.metadata.create_all(bind=engine)
+
         from app.db.init_db import init_db
-
         db = SessionLocal()
-
         try:
             init_db(db)
         finally:
             db.close()
+        logger.info("✅ Base de datos inicializada: tablas y superusuario verificados.")
+    except Exception as e:
+        logger.warning(f"⚠️ Inicialización automática de DB diferida: {e}")
 
     yield
 

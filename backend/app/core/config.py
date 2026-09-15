@@ -2,10 +2,29 @@
 DataOff Backend — Configuración Central
 Usa Pydantic Settings para validar y tipear todas las variables de entorno.
 """
+import os
 from functools import lru_cache
 from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import AnyHttpUrl, field_validator
+
+# Desempaquetar variables si fueron pegadas en bloque en una sola clave (ej. ENVIRONMENT en Dokploy)
+for _env_key in list(os.environ.keys()):
+    _val = os.environ[_env_key]
+    if "\n" in _val and "=" in _val:
+        _first_line = ""
+        for _line in _val.splitlines():
+            _line = _line.strip()
+            if "=" in _line:
+                _k, _v = _line.split("=", 1)
+                _k = _k.strip()
+                _v = _v.strip().strip("'\"")
+                if _k:
+                    os.environ[_k] = _v
+            elif _line and not _first_line:
+                _first_line = _line
+        if _first_line:
+            os.environ[_env_key] = _first_line
 
 
 class Settings(BaseSettings):
