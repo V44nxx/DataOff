@@ -39,50 +39,52 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean }
 
-    // ── Token expirado → intentar refresh ─────────────────
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject })
-        }).then((token) => {
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${token}`
-          }
-          return api(originalRequest)
-        })
-      }
-
-      originalRequest._retry = true
-      isRefreshing = true
-
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (!refreshToken) {
-        processQueue(error, null)
-        isRefreshing = false
-        window.location.href = '/login'
-        return Promise.reject(error)
-      }
-
-      try {
-        const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
-          refresh_token: refreshToken,
-        })
-        localStorage.setItem('access_token', data.access_token)
-        localStorage.setItem('refresh_token', data.refresh_token)
-        processQueue(null, data.access_token)
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${data.access_token}`
+    // ── Token expirado o inválido (401) ─────────────────
+    if (error.response?.status === 401) {
+      if (!originalRequest._retry) {
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject })
+          }).then((token) => {
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${token}`
+            }
+            return api(originalRequest)
+          })
         }
-        return api(originalRequest)
-      } catch (refreshError) {
-        processQueue(refreshError, null)
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        window.location.href = '/login'
-        return Promise.reject(refreshError)
-      } finally {
-        isRefreshing = false
+
+        originalRequest._retry = true
+        isRefreshing = true
+
+        const refreshToken = localStorage.getItem('refresh_token')
+        if (refreshToken) {
+          try {
+            const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {
+              refresh_token: refreshToken,
+            })
+            localStorage.setItem('access_token', data.access_token)
+            localStorage.setItem('refresh_token', data.refresh_token)
+            processQueue(null, data.access_token)
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${data.access_token}`
+            }
+            return api(originalRequest)
+          } catch {
+            processQueue(error, null)
+          } finally {
+            isRefreshing = false
+          }
+        }
       }
+
+      // Si no hay refresh_token o el refresh falló: limpiar toda la sesión
+      localStorage.removeItem('access_token')
+      localStorage.removeItem('refresh_token')
+      localStorage.removeItem('dataoff-auth')
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+      return Promise.reject(error)
     }
 
     // ── Otros errores ──────────────────────────────────────

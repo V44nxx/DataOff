@@ -26,8 +26,8 @@ WORKDIR /app
 
 # Instalar dependencias de Python (aprovechando caché de Docker)
 COPY requirements.txt .
-RUN pip install --upgrade pip setuptools wheel \
-    && pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --root-user-action=ignore --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
 
 # Copiar el código del backend (forzar reconstrucción sin caché v1.0.1+2)
 ARG CACHEBUST=20260914_1
