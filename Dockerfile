@@ -20,8 +20,8 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci --frozen-lockfile
 
-# Copiar código fuente y compilar (cache bust v1.0.1+2)
-ARG CACHEBUST=20260914_2
+# Copiar código fuente y compilar (cache bust v1.0.1+3)
+ARG CACHEBUST=20260914_3
 COPY frontend/ .
 RUN npm run build
 # El resultado queda en /frontend/dist
@@ -82,13 +82,13 @@ USER appuser
 EXPOSE 8000
 
 # ── Healthcheck ───────────────────────────────────────────────────────────────
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
 # ── Arranque con Uvicorn ──────────────────────────────────────────────────────
 CMD ["sh", "-c", \
-    "uvicorn app.main:app \
+    "exec uvicorn app.main:app \
         --host 0.0.0.0 \
         --port ${PORT:-8000} \
-        --workers ${UVICORN_WORKERS:-2} \
+        --workers ${UVICORN_WORKERS:-1} \
         --log-level ${LOG_LEVEL:-info}"]

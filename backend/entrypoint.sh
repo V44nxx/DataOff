@@ -18,5 +18,5 @@ echo "==> [3/3] Arrancando servidor Uvicorn en puerto ${PORT:-8000}..."
 exec uvicorn app.main:app \
     --host 0.0.0.0 \
     --port "${PORT:-8000}" \
-    --workers "${UVICORN_WORKERS:-2}" \
+    --workers "${UVICORN_WORKERS:-1}" \
     --log-level "${LOG_LEVEL:-info}"

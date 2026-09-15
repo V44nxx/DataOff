@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # ── Aplicación ─────────────────────────────────────────
@@ -26,21 +27,37 @@ class Settings(BaseSettings):
     PORT: int = 8000
 
     # ── Base de Datos ──────────────────────────────────────
-    DATABASE_URL: str
+    DATABASE_URL: str = "postgresql://dataoff_user:dataoff_password@localhost:5432/dataoff_db"
     ASYNC_DATABASE_URL: Optional[str] = None
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def validate_database_url(cls, v):
+        if not v or not str(v).strip():
+            return "postgresql://dataoff_user:dataoff_password@localhost:5432/dataoff_db"
+        return str(v).strip()
+
     # ── JWT ────────────────────────────────────────────────
-    SECRET_KEY: str
+    SECRET_KEY: str = "dataoff-default-secret-key-change-in-production-min-32-chars"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
+    @field_validator("SECRET_KEY", mode="before")
+    @classmethod
+    def validate_secret_key(cls, v):
+        if not v or not str(v).strip():
+            return "dataoff-default-secret-key-change-in-production-min-32-chars"
+        return str(v).strip()
+
     # ── CORS ───────────────────────────────────────────────
-    ALLOWED_ORIGINS: str = "http://localhost:5173"
+    ALLOWED_ORIGINS: str = "*"
 
     @property
     def allowed_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
+        if not self.ALLOWED_ORIGINS or self.ALLOWED_ORIGINS.strip() == "*":
+            return ["*"]
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",") if origin.strip()]
 
     # ── Seguridad ──────────────────────────────────────────
     BCRYPT_ROUNDS: int = 12
